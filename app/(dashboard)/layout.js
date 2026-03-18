@@ -30,6 +30,9 @@ export default function DashboardLayout({ children }) {
           <Link href="/" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
             <span>🏥</span> Zdravie ponuky
           </Link>
+          <Link href="/trend" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
+            <span>📈</span> Trend zdravia
+          </Link>
           <Link href="/reakčný-čas" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
             <span>⚡</span> Reakčný čas
           </Link>
