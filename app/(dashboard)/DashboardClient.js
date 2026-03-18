@@ -77,6 +77,15 @@ export default function DashboardClient() {
   const totalPct = officeDeals.length > 0 ? Math.round((totalOk / officeDeals.length) * 100) : 0;
   const health = getHealth(totalPct);
 
+  const TOP_BRANDS = ["ŠKODA", "VOLKSWAGEN", "BMW", "AUDI", "MERCEDES"];
+  const brandStats = TOP_BRANDS.map(brand => {
+    const matches = officeDeals.filter(d => d.title && d.title.toUpperCase().includes(brand));
+    const pct = officeDeals.length > 0 ? Math.round((matches.length / officeDeals.length) * 100) : 0;
+    return { brand, count: matches.length, pct };
+  });
+  const topBrandTotal = brandStats.reduce((a, b) => a + b.count, 0);
+  const topBrandPct = officeDeals.length > 0 ? Math.round((topBrandTotal / officeDeals.length) * 100) : 0;
+
   const officeSummary = Object.keys(OFFICES).filter(o => o !== "Všetky").map(o => {
     const names = OFFICES[o];
     const od = cleanDeals.filter(d => names.some(n => d.owner_name && d.owner_name.trim().toLowerCase() === n.trim().toLowerCase()));
@@ -120,6 +129,29 @@ export default function DashboardClient() {
             <div className={"rounded-xl p-4 " + cardCls}>
               <p className={"text-sm " + (dark ? "text-gray-400" : "text-gray-500")}>Zdravie ponuky</p>
               <p className={"text-2xl font-bold " + health.color}>{totalPct}% – {health.label}</p>
+            </div>
+          </div>
+
+          {/* Top 5 značiek */}
+          <div className={"rounded-xl p-4 mb-6 " + cardCls} style={cardStyle}>
+            <div className="flex justify-between items-center mb-3">
+              <h2 className="font-semibold">Top 5 značiek v ponuke</h2>
+              <span className={"text-sm font-medium " + (dark ? "text-gray-400" : "text-gray-500")}>
+                {topBrandTotal} vozidiel ({topBrandPct}% ponuky)
+              </span>
+            </div>
+            <div className="flex flex-col gap-2">
+              {brandStats.map(({ brand, count, pct }) => (
+                <div key={brand}>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="font-medium">{brand}</span>
+                    <span className={dark ? "text-gray-400" : "text-gray-500"}>{count} ks &nbsp;·&nbsp; {pct}%</span>
+                  </div>
+                  <div className={"w-full rounded-full h-2 " + (dark ? "bg-gray-700" : "bg-gray-200")}>
+                    <div className="h-2 rounded-full" style={{ width: pct + "%", backgroundColor: "#FF501C" }} />
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
