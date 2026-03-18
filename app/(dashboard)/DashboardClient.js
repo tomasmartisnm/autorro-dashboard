@@ -38,11 +38,17 @@ export default function DashboardClient() {
   const [office, setOffice] = useState("Všetky");
   const [dark, setDark] = useState(false);
 
+  const [conversion, setConversion] = useState(null);
+
   useEffect(() => {
     fetch("/api/zdravie-ponuky")
       .then(r => r.json())
       .then(data => { setDeals(data); setLoading(false); })
       .catch(() => setLoading(false));
+    fetch("/api/wasitlead-conversion")
+      .then(r => r.json())
+      .then(setConversion)
+      .catch(() => {});
   }, []);
 
   const bg = dark ? "text-white" : "text-gray-900";
@@ -154,6 +160,31 @@ export default function DashboardClient() {
               ))}
             </div>
           </div>
+
+          {/* Konverzia Lead → Inzerované */}
+          {conversion && (
+            <div className={"rounded-xl p-4 mb-6 " + cardCls} style={cardStyle}>
+              <div className="flex justify-between items-center mb-3">
+                <h2 className="font-semibold">Konverzia: Lead → Inzerované</h2>
+                <span className={"text-sm font-medium " + (dark ? "text-gray-400" : "text-gray-500")}>
+                  {conversion.totalConverted} / {conversion.totalLeads} leadov
+                </span>
+              </div>
+              <div className="flex items-center gap-4 mb-3">
+                <span className={"text-4xl font-bold " + (conversion.conversionPct >= 50 ? "text-green-400" : conversion.conversionPct >= 30 ? "text-yellow-400" : "text-red-400")}>
+                  {conversion.conversionPct}%
+                </span>
+                <div className="flex-1">
+                  <div className={"w-full rounded-full h-3 " + (dark ? "bg-gray-700" : "bg-gray-200")}>
+                    <div className="h-3 rounded-full transition-all" style={{ width: conversion.conversionPct + "%", backgroundColor: conversion.conversionPct >= 50 ? "#22c55e" : conversion.conversionPct >= 30 ? "#eab308" : "#ef4444" }} />
+                  </div>
+                  <p className={"text-xs mt-1 " + (dark ? "text-gray-400" : "text-gray-500")}>
+                    % dealov s wasItLead=yes ktoré sa dostali do štádia Inzerované
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="flex flex-wrap gap-2 mb-4 md:mb-8">
             {Object.keys(OFFICES).map(o => (
