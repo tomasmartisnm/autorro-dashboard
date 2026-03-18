@@ -109,7 +109,7 @@ export default function DashboardClient({ deals }) {
         <div className="flex flex-wrap gap-2 mb-4 md:mb-8">
           {Object.keys(OFFICES).map(o => (
             <button key={o} onClick={() => setOffice(o)}
-              className={"px-4 py-2 rounded-full text-sm font-medium " + (office === o ? "text-white" style={{backgroundColor: "#FF501C"}} : btnBase)}>
+              className={"px-4 py-2 rounded-full text-sm font-medium " + (office === o ? "text-white" : btnBase)} style={office === o ? {backgroundColor: "#FF501C"} : {}}>
               {o}
             </button>
           ))}
