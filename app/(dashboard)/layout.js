@@ -1,10 +1,20 @@
 "use client";
 import Link from "next/link";
-import { createClient } from "../../lib/supabase";
-import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+
+function NavLink({ href, icon, label }) {
+  const pathname = usePathname();
+  const active = pathname === href;
+  return (
+    <Link href={href} className={"flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors " + (active ? "bg-[#FF501C] text-white font-semibold" : "text-[#F7F6F4] hover:bg-[#5c1a42] hover:text-white")}>
+      <span>{icon}</span> {label}
+    </Link>
+  );
+}
 
 function LogoutButton() {
-  const router = useRouter();
+  const { createClient } = require("../../lib/supabase");
+  const router = require("next/navigation").useRouter();
   const supabase = createClient();
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -12,7 +22,7 @@ function LogoutButton() {
     router.refresh();
   }
   return (
-    <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors w-full mt-auto">
+    <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-[#F7F6F4] hover:bg-red-900 hover:text-white transition-colors w-full mt-auto">
       <span>🚪</span> Odhlásiť sa
     </button>
   );
@@ -20,52 +30,45 @@ function LogoutButton() {
 
 export default function DashboardLayout({ children }) {
   return (
-    <div className="flex min-h-screen bg-gray-100">
-      <aside className="hidden md:flex w-56 bg-white border-r border-gray-200 flex-col p-4 fixed h-full">
-        <div className="mb-8">
-          <h1 className="text-lg font-bold text-gray-900">Autorro Dashboard</h1>
-          <p className="text-xs text-gray-400">CRManagement</p>
+    <div className="flex min-h-screen" style={{backgroundColor: "#F7F6F4"}}>
+      <aside className="hidden md:flex w-60 flex-col p-5 fixed h-full" style={{backgroundColor: "#481132"}}>
+        <div className="mb-8 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{backgroundColor: "#FF501C"}}>
+            <span className="text-white font-bold text-sm">A</span>
+          </div>
+          <div>
+            <h1 className="text-white font-bold text-base leading-tight">Autorro</h1>
+            <p className="text-xs" style={{color: "#c4a0b4"}}>Dashboard</p>
+          </div>
         </div>
         <nav className="flex flex-col gap-1 flex-1">
-          <Link href="/" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
-            <span>🏥</span> Zdravie ponuky
-          </Link>
-          <Link href="/trend" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
-            <span>📈</span> Trend zdravia
-          </Link>
-          <Link href="/reakčný-čas" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
-            <span>⚡</span> Reakčný čas
-          </Link>
-          <Link href="/aktivity" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
-            <span>📊</span> Aktivity
-          </Link>
-          <Link href="/pipeline" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
-            <span>🚗</span> Pipeline
-          </Link>
-          <Link href="/users" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
-            <span>👥</span> Používatelia
-          </Link>
+          <NavLink href="/" icon="🏥" label="Zdravie ponuky" />
+          <NavLink href="/trend" icon="📈" label="Trend zdravia" />
+          <NavLink href="/reakčný-čas" icon="⚡" label="Reakčný čas" />
+          <NavLink href="/aktivity" icon="📊" label="Aktivity" />
+          <NavLink href="/pipeline" icon="🚗" label="Pipeline" />
+          <NavLink href="/users" icon="👥" label="Používatelia" />
+          <NavLink href="/zmena-hesla" icon="🔑" label="Zmena hesla" />
         </nav>
-        <Link href="/zmena-hesla" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
-          <span>🔑</span> Zmena hesla
-        </Link>
         <LogoutButton />
       </aside>
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around z-50">
-        <Link href="/" className="flex flex-col items-center py-3 px-4 text-xs text-gray-600">
-          <span className="text-xl">🏥</span>Zdravie
+
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 flex justify-around z-50 border-t" style={{backgroundColor: "#481132", borderColor: "#5c1a42"}}>
+        <Link href="/" className="flex flex-col items-center py-3 px-3 text-xs text-white">
+          <span className="text-lg">🏥</span>Zdravie
         </Link>
-        <Link href="/reakčný-čas" className="flex flex-col items-center py-3 px-4 text-xs text-gray-600">
-          <span className="text-xl">⚡</span>Reakčný čas
+        <Link href="/trend" className="flex flex-col items-center py-3 px-3 text-xs text-white">
+          <span className="text-lg">📈</span>Trend
         </Link>
-        <Link href="/aktivity" className="flex flex-col items-center py-3 px-4 text-xs text-gray-600">
-          <span className="text-xl">📊</span>Aktivity
+        <Link href="/reakčný-čas" className="flex flex-col items-center py-3 px-3 text-xs text-white">
+          <span className="text-lg">⚡</span>Reakčný čas
         </Link>
-        <Link href="/pipeline" className="flex flex-col items-center py-3 px-4 text-xs text-gray-600">
-          <span className="text-xl">🚗</span>Pipeline
+        <Link href="/aktivity" className="flex flex-col items-center py-3 px-3 text-xs text-white">
+          <span className="text-lg">📊</span>Aktivity
         </Link>
       </nav>
-      <main className="md:ml-56 flex-1 p-4 md:p-8 pb-24 md:pb-8 bg-gray-100 min-h-screen">
+
+      <main className="md:ml-60 flex-1 p-4 md:p-8 pb-24 md:pb-8 min-h-screen" style={{backgroundColor: "#F7F6F4"}}>
         {children}
       </main>
     </div>
