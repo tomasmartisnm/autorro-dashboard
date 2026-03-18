@@ -36,11 +36,14 @@ export default function DashboardClient({ deals }) {
   const [office, setOffice] = useState("Všetky");
   const [dark, setDark] = useState(false);
 
-  const bg = dark ? "bg-gray-950 text-white" : "bg-gray-100 text-gray-900";
-  const cardCls = dark ? "bg-gray-900" : "bg-white shadow";
-  const rowCls = dark ? "border-gray-800 hover:bg-gray-900" : "border-gray-200 hover:bg-gray-50";
-  const theadCls = dark ? "bg-gray-900 text-gray-300" : "bg-gray-200 text-gray-700";
-  const btnBase = dark ? "bg-gray-800 text-gray-300 hover:bg-gray-700" : "bg-gray-200 text-gray-700 hover:bg-gray-300";
+  const bg = dark ? "text-white" : "text-gray-900";
+  const bgStyle = dark ? {backgroundColor: '#481132'} : {backgroundColor: '#FFFFFF'};
+  const cardCls = dark ? "shadow" : "bg-white shadow";
+  const cardStyle = dark ? {backgroundColor: '#5c1a42'} : {};
+  const rowCls = dark ? "border-gray-700" : "border-gray-100 hover:bg-gray-50";
+  const theadCls = dark ? "text-gray-300" : "text-gray-700";
+  const theadStyle = dark ? {backgroundColor: '#3d0e2a'} : {backgroundColor: '#F7F6F4'};
+  const btnBase = dark ? "text-gray-300 hover:opacity-80" : "bg-gray-100 text-gray-700 hover:bg-gray-200";
 
   const cleanDeals = deals.filter(d => !EXCLUDE.includes(d.owner_name));
   const officeDeals = office === "Všetky" ? cleanDeals : cleanDeals.filter(d => {
@@ -74,12 +77,12 @@ export default function DashboardClient({ deals }) {
   }).sort((a, b) => b.pct - a.pct);
 
   return (
-    <div className={"min-h-screen " + bg}>
+    <div className={"min-h-screen " + bg} style={bgStyle}>
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-1">
           <h1 className="text-3xl font-bold">Autorro Dashboard</h1>
           <button onClick={() => setDark(!dark)} className={"px-4 py-2 rounded-full text-sm font-medium " + btnBase}>
-            {dark ? "☀️ Light mode" : "🌙 Dark mode"}
+            {dark ? "☀️ Light" : "🌙 Dark"}
           </button>
         </div>
         <p className={"mb-6 " + (dark ? "text-gray-400" : "text-gray-500")}>Zdravie ponuky – Stage: Inzerované</p>
@@ -106,7 +109,7 @@ export default function DashboardClient({ deals }) {
         <div className="flex flex-wrap gap-2 mb-4 md:mb-8">
           {Object.keys(OFFICES).map(o => (
             <button key={o} onClick={() => setOffice(o)}
-              className={"px-4 py-2 rounded-full text-sm font-medium " + (office === o ? "bg-blue-600 text-white" : btnBase)}>
+              className={"px-4 py-2 rounded-full text-sm font-medium " + (office === o ? "text-white" style={{backgroundColor: "#FF501C"}} : btnBase)}>
               {o}
             </button>
           ))}
