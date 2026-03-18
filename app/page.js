@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import DashboardClient from "./DashboardClient";
 
 const INZEROVANE_STAGES = [13, 31, 34, 22];
