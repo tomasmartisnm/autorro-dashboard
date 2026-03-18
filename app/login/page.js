@@ -56,6 +56,9 @@ export default function LoginPage() {
             />
           </div>
           {error && <p className="text-red-500 text-sm">{error}</p>}
+          <div className="text-right">
+            <a href="/forgot-password" className="text-sm text-orange-500 hover:text-orange-600">Zabudnuté heslo?</a>
+          </div>
           <button
             type="submit"
             disabled={loading}
