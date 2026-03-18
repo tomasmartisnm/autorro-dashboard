@@ -2,85 +2,19 @@
 
 import { useEffect, useState } from "react";
 
-// Each broker is { display, aliases } — aliases are all name variants in Pipedrive
-const BROKER_GROUPS = {
-  "BB": [
-    { display: "Dominika Kompaniková", aliases: ["Dominika Kompaniková", "Dominka Kompaníková"] },
-    { display: "Milan Kováč", aliases: ["Milan Kováč"] },
-    { display: "Andrej Čík", aliases: ["Andrej Čík"] },
-    { display: "Tomáš Urbán", aliases: ["Tomáš Urbán", "Tomás Urban"] },
-    { display: "Dávid Juhaniak", aliases: ["Dávid Juhaniak", "David Juhaniak"] },
-  ],
-  "TT": [
-    { display: "Bálint Forró", aliases: ["Bálint Forró", "Bálint Forro"] },
-    { display: "Tomáš Opálek", aliases: ["Tomáš Opálek"] },
-    { display: "Karolína Lisická", aliases: ["Karolína Lisická"] },
-    { display: "Martin Blažek", aliases: ["Martin Blažek"] },
-    { display: "Lukáš Krommel", aliases: ["Lukáš Krommel"] },
-  ],
-  "NR": [
-    { display: "Martin Petráš", aliases: ["Martin Petráš"] },
-    { display: "Dávid Kalužák", aliases: ["Dávid Kalužák", "David Kalužák"] },
-    { display: "Daniel Kádek", aliases: ["Daniel Kádek"] },
-    { display: "Gabriela Šodorová", aliases: ["Gabriela Šodorová"] },
-    { display: "Dávid Čintala", aliases: ["Dávid Čintala"] },
-  ],
-  "BA": [
-    { display: "Milan Švorc", aliases: ["Milan Švorc"] },
-    { display: "Ján Mikuš", aliases: ["Ján Mikuš"] },
-    { display: "Richard Kiss", aliases: ["Richard Kiss"] },
-    { display: "Karin Harvan", aliases: ["Karin Harvan"] },
-    { display: "Matej Hromada", aliases: ["Matej Hromada"] },
-    { display: "Milan Pulc", aliases: ["Milan Pulc"] },
-    { display: "Martin Bošeľa", aliases: ["Martin Bošeľa"] },
-    { display: "Peter Maťo", aliases: ["Peter Maťo"] },
-    { display: "Jonathán Pavelka", aliases: ["Jonathán Pavelka"] },
-    { display: "Matej Klačko", aliases: ["Matej Klačko"] },
-    { display: "Dominik Ďurčo", aliases: ["Dominik Ďurčo"] },
-  ],
-  "TN": [
-    { display: "Libor Koníček", aliases: ["Libor Koníček"] },
-    { display: "Tomáš Otrubný", aliases: ["Tomáš Otrubný"] },
-    { display: "Peter Mjartan", aliases: ["Peter Mjartan"] },
-    { display: "Martin Mečiar", aliases: ["Martin Mečiar"] },
-    { display: "Ján Skovajsa", aliases: ["Ján Skovajsa"] },
-    { display: "Tomáš Kučerka", aliases: ["Tomáš Kučerka"] },
-    { display: "Patrik Frič", aliases: ["Patrik Frič"] },
-  ],
-  "ZA": [
-    { display: "Tomáš Smieško", aliases: ["Tomáš Smieško"] },
-    { display: "Daniel Jašek", aliases: ["Daniel Jašek"] },
-    { display: "Vladko Hess", aliases: ["Vladko Hess", "Wlodzimierz Hess"] },
-    { display: "Irena Varadová", aliases: ["Irena Varadová"] },
-    { display: "Matej Gažo", aliases: ["Matej Gažo"] },
-    { display: "Veronika Maťková", aliases: ["Veronika Maťková"] },
-    { display: "Tomáš Ďurana", aliases: ["Tomáš Ďurana"] },
-  ],
-  "PP": [
-    { display: "Sebastián Čuban", aliases: ["Sebastián Čuban"] },
-    { display: "Tomáš Matta", aliases: ["Tomáš Matta"] },
-  ],
-  "KE": [
-    { display: "Ján Tej", aliases: ["Ján Tej"] },
-    { display: "Adrián Šomšág", aliases: ["Adrián Šomšág"] },
-    { display: "Viliam Baran", aliases: ["Viliam Baran"] },
-    { display: "Jaroslav Hažlinský", aliases: ["Jaroslav Hažlinský"] },
-    { display: "Martin Živčák", aliases: ["Martin Živčák"] },
-    { display: "Ján Slivka", aliases: ["Ján Slivka"] },
-  ],
+const OFFICES = {
+  "Všetky": null,
+  "BB": ["Dominika Kompaniková", "Dominka Kompaníková", "Milan Kováč", "Andrej Čík", "Tomáš Urbán", "Tomás Urban", "Dávid Juhaniak", "David Juhaniak"],
+  "TT": ["Bálint Forró", "Bálint Forro", "Tomáš Opálek", "Karolína Lisická", "Martin Blažek", "Lukáš Krommel"],
+  "NR": ["Martin Petráš", "Dávid Kalužák", "David Kalužák", "Daniel Kádek", "Gabriela Šodorová", "Dávid Čintala"],
+  "BA": ["Milan Švorc", "Ján Mikuš", "Richard Kiss", "Karin Harvan", "Matej Hromada", "Milan Pulc", "Martin Bošeľa", "Peter Maťo", "Jonathán Pavelka", "Matej Klačko", "Dominik Ďurčo"],
+  "TN": ["Libor Koníček", "Tomáš Otrubný", "Peter Mjartan", "Martin Mečiar", "Ján Skovajsa", "Tomáš Kučerka", "Patrik Frič"],
+  "ZA": ["Tomáš Smieško", "Daniel Jašek", "Vladko Hess", "Wlodzimierz Hess", "Irena Varadová", "Matej Gažo", "Veronika Maťková", "Tomáš Ďurana"],
+  "PP": ["Sebastián Čuban", "Tomáš Matta"],
+  "KE": ["Ján Tej", "Adrián Šomšág", "Viliam Baran", "Jaroslav Hažlinský", "Martin Živčák", "Ján Slivka"],
 };
 
 const EXCLUDE = ["Development", "Tomáš Martiš", "Miroslav Hrehor", "Peter Hudec", "Jaroslav Kováč"];
-
-// Build alias → display lookup
-const ALIAS_TO_DISPLAY = {};
-for (const brokers of Object.values(BROKER_GROUPS)) {
-  for (const { display, aliases } of brokers) {
-    for (const a of aliases) {
-      ALIAS_TO_DISPLAY[a.trim().toLowerCase()] = display;
-    }
-  }
-}
 
 function getSpeed(avg) {
   if (avg === null || avg === undefined) return { label: "Bez dát", color: "text-gray-400", barColor: "bg-gray-400" };
@@ -101,14 +35,14 @@ function SpeedBar({ avg, dark }) {
   );
 }
 
-function getBrokers(office) {
+// Get names for an office, same logic as DashboardClient
+function getOfficeNames(office) {
   if (office === "Všetky") {
-    const seen = new Set();
-    return Object.values(BROKER_GROUPS).flatMap(list =>
-      list.filter(b => { if (seen.has(b.display)) return false; seen.add(b.display); return true; })
-    );
+    return Object.entries(OFFICES)
+      .filter(([o]) => o !== "Všetky")
+      .flatMap(([, names]) => names);
   }
-  return BROKER_GROUPS[office] || [];
+  return OFFICES[office] || [];
 }
 
 export default function CasPredajaClient() {
@@ -122,34 +56,21 @@ export default function CasPredajaClient() {
     fetch("/api/cas-predaja")
       .then(r => r.json())
       .then(data => {
-        // Aggregate by display name (merge aliases)
-        const raw = {};
-        for (const row of data) {
-          const display = ALIAS_TO_DISPLAY[row.owner_name?.trim().toLowerCase()] || row.owner_name;
-          if (!display || EXCLUDE.includes(display)) continue;
-          if (!raw[display]) raw[display] = [];
-          // Push individual deal days if available, else use avg as proxy
-          raw[display].push({ avg: row.avg, count: row.count, min: row.min, max: row.max });
-        }
-        // Combine entries per display name
+        // Index by exact owner_name (case-insensitive)
         const map = {};
-        for (const [display, rows] of Object.entries(raw)) {
-          const totalCount = rows.reduce((s, r) => s + r.count, 0);
-          const weightedAvg = rows.reduce((s, r) => s + r.avg * r.count, 0) / totalCount;
-          const minVal = Math.min(...rows.map(r => r.min));
-          const maxVal = Math.max(...rows.map(r => r.max));
-          map[display] = {
-            count: totalCount,
-            avg: Math.round(weightedAvg * 10) / 10,
-            min: Math.round(minVal * 10) / 10,
-            max: Math.round(maxVal * 10) / 10,
-          };
+        for (const row of data) {
+          if (!row.owner_name) continue;
+          map[row.owner_name.trim().toLowerCase()] = row;
         }
         setStatsMap(map);
         setLoading(false);
       })
       .catch(() => { setError("Nepodarilo sa načítať dáta."); setLoading(false); });
   }, []);
+
+  function getStats(name) {
+    return statsMap[name.trim().toLowerCase()] || null;
+  }
 
   const bg = dark ? "text-white" : "text-gray-900";
   const bgStyle = dark ? { backgroundColor: "#481132" } : { backgroundColor: "#FFFFFF" };
@@ -160,24 +81,26 @@ export default function CasPredajaClient() {
   const theadStyle = dark ? { backgroundColor: "#3d0e2a" } : { backgroundColor: "#F7F6F4" };
   const btnBase = dark ? "text-gray-300 hover:opacity-80" : "bg-gray-100 text-gray-700 hover:bg-gray-200";
 
-  const brokers = getBrokers(office).filter(b => !EXCLUDE.includes(b.display));
+  const names = getOfficeNames(office).filter(n => !EXCLUDE.includes(n));
 
-  const brokerList = brokers.map(({ display }) => {
-    const s = statsMap[display] || null;
-    return { name: display, count: s ? s.count : 0, avg: s ? s.avg : null, min: s ? s.min : null, max: s ? s.max : null };
-  }).sort((a, b) => {
-    if (a.avg === null && b.avg === null) return 0;
-    if (a.avg === null) return 1;
-    if (b.avg === null) return -1;
-    return a.avg - b.avg;
-  });
+  const brokerList = names
+    .map(name => {
+      const s = getStats(name);
+      return { name, count: s ? s.count : 0, avg: s ? s.avg : null, min: s ? s.min : null, max: s ? s.max : null };
+    })
+    .sort((a, b) => {
+      if (a.avg === null && b.avg === null) return 0;
+      if (a.avg === null) return 1;
+      if (b.avg === null) return -1;
+      return a.avg - b.avg;
+    });
 
-  const officeSummary = Object.keys(BROKER_GROUPS).map(o => {
-    const obrokers = BROKER_GROUPS[o].filter(b => !EXCLUDE.includes(b.display));
-    const withData = obrokers.filter(b => statsMap[b.display]);
+  const officeSummary = Object.keys(OFFICES).filter(o => o !== "Všetky").map(o => {
+    const onames = (OFFICES[o] || []).filter(n => !EXCLUDE.includes(n));
+    const withData = onames.filter(n => getStats(n));
     if (withData.length === 0) return { name: o, avg: null, count: 0 };
-    const totalCount = withData.reduce((a, b) => a + statsMap[b.display].count, 0);
-    const weightedAvg = withData.reduce((a, b) => a + statsMap[b.display].avg * statsMap[b.display].count, 0) / totalCount;
+    const totalCount = withData.reduce((a, n) => a + getStats(n).count, 0);
+    const weightedAvg = withData.reduce((a, n) => a + getStats(n).avg * getStats(n).count, 0) / totalCount;
     return { name: o, avg: Math.round(weightedAvg * 10) / 10, count: totalCount };
   }).sort((a, b) => {
     if (a.avg === null && b.avg === null) return 0;
@@ -186,10 +109,10 @@ export default function CasPredajaClient() {
     return a.avg - b.avg;
   });
 
-  const withData = brokers.filter(b => statsMap[b.display]);
-  const totalCount = withData.reduce((a, b) => a + statsMap[b.display].count, 0);
+  const withData = names.filter(n => getStats(n));
+  const totalCount = withData.reduce((a, n) => a + getStats(n).count, 0);
   const overallAvg = totalCount > 0
-    ? Math.round(withData.reduce((a, b) => a + statsMap[b.display].avg * statsMap[b.display].count, 0) / totalCount * 10) / 10
+    ? Math.round(withData.reduce((a, n) => a + getStats(n).avg * getStats(n).count, 0) / totalCount * 10) / 10
     : null;
   const overallSpeed = getSpeed(overallAvg);
 
@@ -221,7 +144,7 @@ export default function CasPredajaClient() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
               <div className={"rounded-xl p-4 " + cardCls} style={cardStyle}>
                 <p className={"text-sm " + (dark ? "text-gray-400" : "text-gray-500")}>Celkom maklérov</p>
-                <p className="text-2xl font-bold">{brokers.length}</p>
+                <p className="text-2xl font-bold">{names.length}</p>
               </div>
               <div className={"rounded-xl p-4 " + cardCls} style={cardStyle}>
                 <p className={"text-sm " + (dark ? "text-gray-400" : "text-gray-500")}>Priem. čas (dni)</p>
@@ -229,16 +152,16 @@ export default function CasPredajaClient() {
               </div>
               <div className={"rounded-xl p-4 " + cardCls} style={cardStyle}>
                 <p className={"text-sm " + (dark ? "text-gray-400" : "text-gray-500")}>Rýchlych (≤30d)</p>
-                <p className="text-2xl font-bold text-green-400">{withData.filter(b => statsMap[b.display].avg <= 30).length}</p>
+                <p className="text-2xl font-bold text-green-400">{withData.filter(n => getStats(n).avg <= 30).length}</p>
               </div>
               <div className={"rounded-xl p-4 " + cardCls} style={cardStyle}>
                 <p className={"text-sm " + (dark ? "text-gray-400" : "text-gray-500")}>Pomalých (&gt;60d)</p>
-                <p className="text-2xl font-bold text-red-400">{withData.filter(b => statsMap[b.display].avg > 60).length}</p>
+                <p className="text-2xl font-bold text-red-400">{withData.filter(n => getStats(n).avg > 60).length}</p>
               </div>
             </div>
 
             <div className="flex flex-wrap gap-2 mb-4 md:mb-8">
-              {["Všetky", ...Object.keys(BROKER_GROUPS)].map(o => (
+              {Object.keys(OFFICES).map(o => (
                 <button key={o} onClick={() => setOffice(o)}
                   className={"px-4 py-2 rounded-full text-sm font-medium " + (office === o ? "text-white" : btnBase)}
                   style={office === o ? { backgroundColor: "#FF501C" } : {}}>
