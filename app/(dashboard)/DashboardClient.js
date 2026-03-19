@@ -1,6 +1,55 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 
+const CONFETTI_EMOJIS = ["🎉","🎊","⭐","✨","🌟","💥","🎈","🏆","🥇","💰","🚗"];
+const CONFETTI_COUNT  = 40;
+
+function Fireworks() {
+  const particles = useRef(
+    Array.from({ length: CONFETTI_COUNT }, (_, i) => ({
+      id:    i,
+      emoji: CONFETTI_EMOJIS[i % CONFETTI_EMOJIS.length],
+      left:  Math.random() * 100,
+      delay: Math.random() * 1.2,
+      dur:   1.8 + Math.random() * 1.2,
+      size:  1.4 + Math.random() * 1.4,
+      rot:   Math.random() * 720 - 360,
+    }))
+  ).current;
+
+  return (
+    <>
+      <style>{`
+        @keyframes confettiFall {
+          0%   { transform: translateY(-80px) rotate(0deg); opacity: 1; }
+          80%  { opacity: 1; }
+          100% { transform: translateY(110vh) rotate(var(--rot)); opacity: 0; }
+        }
+        .confetti-particle {
+          position: fixed;
+          top: 0;
+          pointer-events: none;
+          z-index: 9999;
+          animation: confettiFall var(--dur) ease-in var(--delay) forwards;
+          font-size: var(--size);
+          will-change: transform;
+        }
+      `}</style>
+      {particles.map(p => (
+        <span key={p.id} className="confetti-particle" style={{
+          left:    p.left + "vw",
+          "--delay": p.delay + "s",
+          "--dur":   p.dur   + "s",
+          "--size":  p.size  + "rem",
+          "--rot":   p.rot   + "deg",
+        }}>
+          {p.emoji}
+        </span>
+      ))}
+    </>
+  );
+}
+
 const OFFICES = {
   "Všetky": null,
   "BB": ["Dominika Kompaniková", "Dominka Kompaníková", "Milan Kováč", "Andrej Čík", "Tomáš Urbán", "Tomás Urban", "Dávid Juhaniak", "David Juhaniak"],
@@ -17,6 +66,16 @@ const EXCLUDE       = ["Development", "Tomáš Martiš", "Miroslav Hrehor", "Pet
 const CENA_KEY      = "880011fdbacbc3eee50103ec49001ac8abd56ae1"; // Cena je OK (enum, 100 = áno)
 const ODP_AUTORRO   = "b4d54b0e06789b713abe1062178c19490259e00a"; // Odporúčaná cena - AUTORRO
 const CENA_VOZIDLA  = "7bc01b48cc10642c58f19ce14bb33fe8abb7bb97"; // Cena vozidla
+
+function norm(s) {
+  return (s || "").normalize("NFD").replace(/\p{Diacritic}/gu, "").trim().toLowerCase();
+}
+
+function nameMatchesOffice(name, officeNames) {
+  if (!officeNames) return true;
+  const n = norm(name);
+  return officeNames.some(alias => norm(alias) === n);
+}
 
 function getHealth(pct) {
   if (pct >= 50) return { label: "Výborné", color: "text-green-400" };
@@ -84,13 +143,15 @@ export default function DashboardClient() {
   const [office, setOffice]     = useState("Všetky");
   const [dark, setDark]         = useState(false);
   const [expanded, setExpanded] = useState({});
-  const [partyMode, setPartyMode] = useState(false);
-  const [countdown, setCountdown] = useState(REFRESH_SEC);
-  const [history, setHistory]   = useState([]); // [{time, health:{name:pct}}]
-  const [refreshing, setRefreshing] = useState(false);
-  const baselineRef = useRef(null);
-  const intervalRef = useRef(null);
-  const countdownRef = useRef(null);
+  const [partyMode, setPartyMode]       = useState(false);
+  const [showFireworks, setShowFireworks] = useState(false);
+  const [countdown, setCountdown]       = useState(REFRESH_SEC);
+  const [history, setHistory]           = useState([]); // [{time, health:{name:pct}, prices}]
+  const [refreshing, setRefreshing]     = useState(false);
+  const baselineRef       = useRef(null);
+  const baselinePricesRef = useRef(null);
+  const intervalRef       = useRef(null);
+  const countdownRef      = useRef(null);
 
   function loadDeals(force = false) {
     setRefreshing(true);
@@ -101,8 +162,20 @@ export default function DashboardClient() {
         setLoading(false);
         setRefreshing(false);
         const health = computeBrokerHealth(data);
-        if (!baselineRef.current) baselineRef.current = health;
-        setHistory(h => [...h.slice(-9), { time: new Date().toLocaleTimeString("sk-SK", { hour: "2-digit", minute: "2-digit", second: "2-digit" }), health }]);
+        // Snapshot cien: { dealId → { title, price, owner, currency } }
+        const prices = {};
+        data.forEach(d => {
+          if (!EXCLUDE.includes(d.owner_name) && d[CENA_VOZIDLA] > 0) {
+            prices[d.id] = { title: d.title, price: d[CENA_VOZIDLA], owner: d.owner_name, currency: d.currency || "EUR" };
+          }
+        });
+        if (!baselineRef.current)       baselineRef.current       = health;
+        if (!baselinePricesRef.current) baselinePricesRef.current = prices;
+        setHistory(h => [...h.slice(-9), {
+          time: new Date().toLocaleTimeString("sk-SK", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+          health,
+          prices,
+        }]);
       })
       .catch(() => { setLoading(false); setRefreshing(false); });
   }
@@ -135,10 +208,9 @@ export default function DashboardClient() {
   const btnBase    = dark ? "text-gray-300 hover:opacity-80" : "bg-gray-100 text-gray-700 hover:bg-gray-200";
 
   const cleanDeals  = deals.filter(d => !EXCLUDE.includes(d.owner_name));
-  const officeDeals = office === "Všetky" ? cleanDeals : cleanDeals.filter(d => {
-    const names = OFFICES[office] || [];
-    return names.some(n => d.owner_name && d.owner_name.trim().toLowerCase() === n.trim().toLowerCase());
-  });
+  const officeDeals = office === "Všetky" ? cleanDeals : cleanDeals.filter(d =>
+    nameMatchesOffice(d.owner_name, OFFICES[office] || [])
+  );
 
   // Build broker map with deal list
   const brokersMap = {};
@@ -170,7 +242,7 @@ export default function DashboardClient() {
 
   const officeSummary = Object.keys(OFFICES).filter(o => o !== "Všetky").map(o => {
     const names = OFFICES[o];
-    const od    = cleanDeals.filter(d => names.some(n => d.owner_name && d.owner_name.trim().toLowerCase() === n.trim().toLowerCase()));
+    const od    = cleanDeals.filter(d => nameMatchesOffice(d.owner_name, names));
     const ok    = od.filter(d => d[CENA_KEY] == 100).length;
     const pct   = od.length > 0 ? Math.round((ok / od.length) * 100) : 0;
     return { name: o, total: od.length, ok, pct };
@@ -178,6 +250,7 @@ export default function DashboardClient() {
 
   return (
     <div className={"min-h-screen " + bg} style={bgStyle}>
+      {showFireworks && <Fireworks />}
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-1">
           <h1 className="text-3xl font-bold">Autorro Dashboard</h1>
@@ -186,8 +259,11 @@ export default function DashboardClient() {
               onClick={() => {
                 if (!partyMode) {
                   baselineRef.current = null;
+                  baselinePricesRef.current = null;
                   setHistory([]);
                   setPartyMode(true);
+                  setShowFireworks(true);
+                  setTimeout(() => setShowFireworks(false), 3500);
                   // Ihneď načítaj čerstvé dáta — leaderboard sa zobrazí okamžite
                   setTimeout(() => loadDeals(true), 50);
                 } else {
@@ -231,66 +307,145 @@ export default function DashboardClient() {
         )}
 
         {!loading && partyMode && history.length > 0 && (() => {
-          const latest = history[history.length - 1].health;
-          const baseline = baselineRef.current || latest;
-          const officeNames = office === "Všetky" ? null : (OFFICES[office] || []);
+          const snap          = history[history.length - 1];
+          const latest        = snap.health;
+          const latestPrices  = snap.prices || {};
+          const baseline      = baselineRef.current || latest;
+          const baselinePrices = baselinePricesRef.current || latestPrices;
+          const officeNames   = office === "Všetky" ? null : (OFFICES[office] || []);
+
+          // ── Zníženia cien per deal ────────────────────────────────
+          const reducedDeals = Object.entries(latestPrices)
+            .filter(([, d]) => nameMatchesOffice(d.owner, officeNames))
+            .filter(([id, d]) => {
+              const base = baselinePrices[id];
+              return base && d.price < base.price;
+            })
+            .map(([id, d]) => {
+              const base = baselinePrices[id];
+              return {
+                id,
+                title:     d.title,
+                owner:     d.owner,
+                reduction: base.price - d.price,
+                basePrice: base.price,
+                newPrice:  d.price,
+                currency:  d.currency,
+              };
+            });
+
+          // Zníženia zoskupené podľa makléra: { ownerNorm → totalReduction }
+          const reductionByBroker = {};
+          reducedDeals.forEach(d => {
+            const key = norm(d.owner);
+            reductionByBroker[key] = (reductionByBroker[key] || 0) + d.reduction;
+          });
+
+          const totalReduction = reducedDeals.reduce((s, d) => s + d.reduction, 0);
+
+          // ── Leaderboard ──────────────────────────────────────────
           const partyBrokers = Object.entries(latest)
-            .filter(([name]) => !officeNames || officeNames.some(n => n.trim().toLowerCase() === name.trim().toLowerCase()))
+            .filter(([name]) => nameMatchesOffice(name, officeNames))
             .map(([name, pct]) => {
-              const base = baseline[name] ?? pct;
-              const delta = pct - base;
-              const hist = history.map(h => h.health[name] ?? base);
-              return { name, pct, base, delta, hist };
+              const base         = baseline[name] ?? pct;
+              const delta        = pct - base;
+              const hist         = history.map(h => h.health[name] ?? base);
+              const priceReduced = reductionByBroker[norm(name)] || 0;
+              return { name, pct, base, delta, hist, priceReduced };
             })
             .sort((a, b) => b.delta !== a.delta ? b.delta - a.delta : b.pct - a.pct);
 
           const medals = ["🥇", "🥈", "🥉"];
           return (
-            <div className={"rounded-xl p-4 mb-6 " + cardCls} style={{ ...(dark ? { backgroundColor: "#3d0e2a" } : { backgroundColor: "#fff7f5" }), border: "2px solid #FF501C" }}>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-bold flex items-center gap-2">🏆 Live leaderboard
-                  <span className="text-xs font-normal px-2 py-0.5 rounded-full" style={{ backgroundColor: "#FF501C", color: "white" }}>
-                    {history.length} snapshots
-                  </span>
-                </h2>
-                <span className={"text-xs " + (dark ? "text-gray-400" : "text-gray-500")}>Zoradené podľa zlepšenia od startu</span>
-              </div>
-              <div className="flex flex-col gap-2">
-                {partyBrokers.map((b, i) => {
-                  const h = getHealth(b.pct);
-                  const barW = Math.max(b.pct, 2);
-                  const barColor = b.pct >= 50 ? "#22c55e" : b.pct >= 35 ? "#eab308" : "#ef4444";
-                  return (
-                    <div key={b.name} className={"rounded-lg p-3 " + (dark ? "bg-[#481132]" : "bg-white shadow-sm")}>
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="text-lg w-7 text-center">{medals[i] || `${i + 1}.`}</span>
-                        <span className="font-semibold flex-1 text-sm">{b.name}</span>
-                        <span className={"font-bold text-sm " + h.color}>{b.pct}%</span>
-                        <span className={"text-sm font-bold px-2 py-0.5 rounded-full " + (b.delta > 0 ? "bg-green-100 text-green-700" : b.delta < 0 ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-500")}>
-                          {b.delta > 0 ? `+${b.delta}%` : b.delta < 0 ? `${b.delta}%` : "—"}
-                          {b.delta > 0 ? " ↑" : b.delta < 0 ? " ↓" : ""}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className={"flex-1 rounded-full h-2.5 " + (dark ? "bg-gray-700" : "bg-gray-100")}>
-                          <div className="h-2.5 rounded-full transition-all duration-500" style={{ width: barW + "%", backgroundColor: barColor }} />
+            <>
+              {/* Leaderboard */}
+              <div className={"rounded-xl p-4 mb-4 " + cardCls} style={{ ...(dark ? { backgroundColor: "#3d0e2a" } : { backgroundColor: "#fff7f5" }), border: "2px solid #FF501C" }}>
+                <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
+                  <h2 className="text-lg font-bold flex items-center gap-2">🏆 Live leaderboard
+                    <span className="text-xs font-normal px-2 py-0.5 rounded-full" style={{ backgroundColor: "#FF501C", color: "white" }}>
+                      {history.length} snapshots
+                    </span>
+                    {office !== "Všetky" && (
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">
+                        📍 {office}
+                      </span>
+                    )}
+                  </h2>
+                  <div className="flex items-center gap-3">
+                    {totalReduction > 0 && (
+                      <span className="text-sm font-semibold text-green-600">
+                        💰 Celkom znížené: <span className="font-extrabold">−{fmtMoney(totalReduction, "EUR")}</span>
+                      </span>
+                    )}
+                    <span className={"text-xs " + (dark ? "text-gray-400" : "text-gray-500")}>Zoradené podľa zlepšenia</span>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {partyBrokers.map((b, i) => {
+                    const h = getHealth(b.pct);
+                    const barW = Math.max(b.pct, 2);
+                    const barColor = b.pct >= 50 ? "#22c55e" : b.pct >= 35 ? "#eab308" : "#ef4444";
+                    // Deals tohto makléra so znížením
+                    const brokerDeals = reducedDeals
+                      .filter(d => norm(d.owner) === norm(b.name))
+                      .sort((a, z) => z.reduction - a.reduction);
+                    return (
+                      <div key={b.name} className={"rounded-lg p-3 " + (dark ? "bg-[#481132]" : "bg-white shadow-sm")}>
+                        {/* Riadok 1: medaila, meno, zdravie %, delta */}
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-lg w-7 text-center shrink-0">{medals[i] || `${i + 1}.`}</span>
+                          <span className="font-semibold flex-1 text-sm truncate">{b.name}</span>
+                          <span className={"font-bold text-sm " + h.color}>{b.pct}%</span>
+                          <span className={"text-sm font-bold px-2 py-0.5 rounded-full " + (b.delta > 0 ? "bg-green-100 text-green-700" : b.delta < 0 ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-500")}>
+                            {b.delta > 0 ? `+${b.delta}%` : b.delta < 0 ? `${b.delta}%` : "—"}
+                            {b.delta > 0 ? " ↑" : b.delta < 0 ? " ↓" : ""}
+                          </span>
+                          {b.priceReduced > 0 && (
+                            <span className="text-xs font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full shrink-0">
+                              −{fmtMoney(b.priceReduced, "EUR")}
+                            </span>
+                          )}
                         </div>
-                        {/* Mini history dots */}
-                        <div className="flex gap-0.5 items-end h-4">
-                          {b.hist.map((v, j) => (
-                            <div key={j} className="w-1.5 rounded-sm transition-all" style={{
-                              height: Math.max(4, Math.round((v / 100) * 16)) + "px",
-                              backgroundColor: v >= 50 ? "#22c55e" : v >= 35 ? "#eab308" : "#ef4444",
-                              opacity: 0.4 + (j / b.hist.length) * 0.6
-                            }} />
-                          ))}
+                        {/* Riadok 2: progress bar + sparkline */}
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <div className={"flex-1 rounded-full h-2.5 " + (dark ? "bg-gray-700" : "bg-gray-100")}>
+                            <div className="h-2.5 rounded-full transition-all duration-500" style={{ width: barW + "%", backgroundColor: barColor }} />
+                          </div>
+                          <div className="flex gap-0.5 items-end h-4">
+                            {b.hist.map((v, j) => (
+                              <div key={j} className="w-1.5 rounded-sm transition-all" style={{
+                                height: Math.max(4, Math.round((v / 100) * 16)) + "px",
+                                backgroundColor: v >= 50 ? "#22c55e" : v >= 35 ? "#eab308" : "#ef4444",
+                                opacity: 0.4 + (j / b.hist.length) * 0.6
+                              }} />
+                            ))}
+                          </div>
                         </div>
+                        {/* Riadok 3: znížené dealy tohto makléra */}
+                        {brokerDeals.length > 0 && (
+                          <div className={"flex flex-col gap-1 mt-2 pt-2 border-t " + (dark ? "border-gray-700" : "border-gray-100")}>
+                            {brokerDeals.map(d => (
+                              <div key={d.id} className="flex items-center justify-between text-xs gap-2">
+                                <a href={`https://autorro.pipedrive.com/deal/${d.id}`}
+                                  target="_blank" rel="noopener noreferrer"
+                                  className="truncate hover:underline flex-1" style={{ color: "#FF501C" }}>
+                                  {d.title || `#${d.id}`}
+                                </a>
+                                <span className={"shrink-0 " + (dark ? "text-gray-400" : "text-gray-400")}>
+                                  <span className="line-through">{fmtMoney(d.basePrice, d.currency)}</span>
+                                  <span className="mx-1">→</span>
+                                  <span>{fmtMoney(d.newPrice, d.currency)}</span>
+                                </span>
+                                <span className="font-bold text-green-600 shrink-0">−{fmtMoney(d.reduction, d.currency)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+                    );
+                  })}
+                </div>
+            </>
           );
         })()}
 
