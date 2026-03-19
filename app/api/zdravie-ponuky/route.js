@@ -8,7 +8,7 @@ const FIELDS = [
   "status", "add_time",
   "880011fdbacbc3eee50103ec49001ac8abd56ae1", // Cena je OK
   "b4d54b0e06789b713abe1062178c19490259e00a", // Odporúčaná cena - AUTORRO
-  "be22b659e743dc6999971965c384c727f3b1f35b", // Odporúčaná cena - MAKLÉR
+  "7bc01b48cc10642c58f19ce14bb33fe8abb7bb97", // Cena vozidla
 ].join(",");
 
 async function fetchAllDeals() {

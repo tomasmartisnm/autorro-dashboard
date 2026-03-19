@@ -16,7 +16,7 @@ const OFFICES = {
 const EXCLUDE       = ["Development", "Tomáš Martiš", "Miroslav Hrehor", "Peter Hudec", "Jaroslav Kováč"];
 const CENA_KEY      = "880011fdbacbc3eee50103ec49001ac8abd56ae1"; // Cena je OK (enum, 100 = áno)
 const ODP_AUTORRO   = "b4d54b0e06789b713abe1062178c19490259e00a"; // Odporúčaná cena - AUTORRO
-const ODP_MAKLER    = "be22b659e743dc6999971965c384c727f3b1f35b"; // Odporúčaná cena - MAKLÉR
+const CENA_VOZIDLA  = "7bc01b48cc10642c58f19ce14bb33fe8abb7bb97"; // Cena vozidla
 
 function getHealth(pct) {
   if (pct >= 50) return { label: "Výborné", color: "text-green-400" };
@@ -254,8 +254,8 @@ export default function DashboardClient() {
                     const zOk = z[CENA_KEY] == 100;
                     if (!aOk && zOk) return -1;
                     if (aOk && !zOk) return 1;
-                    const aDiff = getPriceDiff(a.value, a[ODP_AUTORRO]) ?? 0;
-                    const zDiff = getPriceDiff(z.value, z[ODP_AUTORRO]) ?? 0;
+                    const aDiff = getPriceDiff(a[CENA_VOZIDLA], a[ODP_AUTORRO]) ?? 0;
+                    const zDiff = getPriceDiff(z[CENA_VOZIDLA], z[ODP_AUTORRO]) ?? 0;
                     return zDiff - aDiff;
                   });
 
@@ -297,9 +297,9 @@ export default function DashboardClient() {
                                 <tbody>
                                   {sortedDeals.map(d => {
                                     const cenaOk   = d[CENA_KEY] == 100;
+                                    const cenaVoz  = d[CENA_VOZIDLA];
                                     const odAut    = d[ODP_AUTORRO];
-                                    const odMak    = d[ODP_MAKLER];
-                                    const diff     = getPriceDiff(d.value, odAut);
+                                    const diff     = getPriceDiff(cenaVoz, odAut);
                                     const rowBg    = !cenaOk && diff > 10
                                       ? (dark ? "bg-red-950" : "bg-red-50")
                                       : !cenaOk
@@ -317,7 +317,7 @@ export default function DashboardClient() {
                                           </a>
                                         </td>
                                         <td className="px-3 py-2">{fmt(d.add_time)}</td>
-                                        <td className="px-3 py-2 font-medium">{fmtMoney(d.value, d.currency)}</td>
+                                        <td className="px-3 py-2 font-medium">{fmtMoney(cenaVoz, d.currency)}</td>
                                         <td className="px-3 py-2">{fmtMoney(odAut, d.currency)}</td>
                                         <td className="px-3 py-2"><PriceDiffBadge diff={diff} /></td>
                                         <td className="px-3 py-2">
