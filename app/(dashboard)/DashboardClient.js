@@ -13,8 +13,10 @@ const OFFICES = {
   "KE": ["Ján Tej", "Adrián Šomšág", "Viliam Baran", "Jaroslav Hažlinský", "Martin Živčák", "Ján Slivka"]
 };
 
-const EXCLUDE = ["Development", "Tomáš Martiš", "Miroslav Hrehor", "Peter Hudec", "Jaroslav Kováč"];
-const CENA_KEY = "880011fdbacbc3eee50103ec49001ac8abd56ae1";
+const EXCLUDE       = ["Development", "Tomáš Martiš", "Miroslav Hrehor", "Peter Hudec", "Jaroslav Kováč"];
+const CENA_KEY      = "880011fdbacbc3eee50103ec49001ac8abd56ae1"; // Cena je OK (enum, 100 = áno)
+const ODP_AUTORRO   = "b4d54b0e06789b713abe1062178c19490259e00a"; // Odporúčaná cena - AUTORRO
+const ODP_MAKLER    = "be22b659e743dc6999971965c384c727f3b1f35b"; // Odporúčaná cena - MAKLÉR
 
 function getHealth(pct) {
   if (pct >= 50) return { label: "Výborné", color: "text-green-400" };
@@ -32,11 +34,38 @@ function HealthBar({ pct, dark }) {
   );
 }
 
+function fmtMoney(val, currency) {
+  if (val == null || val === 0) return "—";
+  return new Intl.NumberFormat("sk-SK", { style: "currency", currency: currency || "EUR", maximumFractionDigits: 0 }).format(val);
+}
+
+function fmt(isoStr) {
+  if (!isoStr) return "—";
+  return new Date(isoStr).toLocaleDateString("sk-SK", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+// Price diff logic: (selling - recommended) / recommended * 100
+// Positive = selling price is ABOVE recommended (bad)
+// Negative = below recommended (good)
+function getPriceDiff(selling, recommended) {
+  if (!selling || !recommended || recommended === 0) return null;
+  return Math.round(((selling - recommended) / recommended) * 100 * 10) / 10;
+}
+
+function PriceDiffBadge({ diff }) {
+  if (diff === null) return <span className="text-gray-400">—</span>;
+  if (diff > 10)  return <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700">+{diff}% ↑</span>;
+  if (diff > 0)   return <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700">+{diff}%</span>;
+  if (diff === 0) return <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">OK</span>;
+  return <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">{diff}% ↓</span>;
+}
+
 export default function DashboardClient() {
-  const [deals, setDeals] = useState([]);
+  const [deals, setDeals]     = useState([]);
   const [loading, setLoading] = useState(true);
-  const [office, setOffice] = useState("Všetky");
-  const [dark, setDark] = useState(false);
+  const [office, setOffice]   = useState("Všetky");
+  const [dark, setDark]       = useState(false);
+  const [expanded, setExpanded] = useState({});
 
   useEffect(() => {
     fetch("/api/zdravie-ponuky")
@@ -45,37 +74,43 @@ export default function DashboardClient() {
       .catch(() => setLoading(false));
   }, []);
 
-  const bg = dark ? "text-white" : "text-gray-900";
-  const bgStyle = dark ? {backgroundColor: '#481132'} : {backgroundColor: '#FFFFFF'};
-  const cardCls = dark ? "shadow" : "bg-white shadow";
-  const cardStyle = dark ? {backgroundColor: '#5c1a42'} : {};
-  const rowCls = dark ? "border-gray-700" : "border-gray-100 hover:bg-gray-50";
-  const theadCls = dark ? "text-gray-300" : "text-gray-700";
-  const theadStyle = dark ? {backgroundColor: '#3d0e2a'} : {backgroundColor: '#F7F6F4'};
-  const btnBase = dark ? "text-gray-300 hover:opacity-80" : "bg-gray-100 text-gray-700 hover:bg-gray-200";
+  function toggleExpand(name) { setExpanded(e => ({ ...e, [name]: !e[name] })); }
 
-  const cleanDeals = deals.filter(d => !EXCLUDE.includes(d.owner_name));
+  const bg         = dark ? "text-white" : "text-gray-900";
+  const bgStyle    = dark ? {backgroundColor: '#481132'} : {backgroundColor: '#FFFFFF'};
+  const cardCls    = dark ? "shadow" : "bg-white shadow";
+  const cardStyle  = dark ? {backgroundColor: '#5c1a42'} : {};
+  const rowCls     = dark ? "border-gray-700" : "border-gray-100";
+  const subRowCls  = dark ? "bg-gray-900 border-gray-700" : "bg-gray-50 border-gray-100";
+  const theadCls   = dark ? "text-gray-300" : "text-gray-700";
+  const theadStyle = dark ? {backgroundColor: '#3d0e2a'} : {backgroundColor: '#F7F6F4'};
+  const subHeadStyle = dark ? {backgroundColor: '#2d0820'} : {backgroundColor: '#EFEFEF'};
+  const btnBase    = dark ? "text-gray-300 hover:opacity-80" : "bg-gray-100 text-gray-700 hover:bg-gray-200";
+
+  const cleanDeals  = deals.filter(d => !EXCLUDE.includes(d.owner_name));
   const officeDeals = office === "Všetky" ? cleanDeals : cleanDeals.filter(d => {
     const names = OFFICES[office] || [];
     return names.some(n => d.owner_name && d.owner_name.trim().toLowerCase() === n.trim().toLowerCase());
   });
 
-  const brokers = {};
+  // Build broker map with deal list
+  const brokersMap = {};
   officeDeals.forEach(deal => {
     const name = deal.owner_name || "Neznámy";
-    if (!brokers[name]) brokers[name] = { total: 0, ok: 0, nie: 0 };
-    brokers[name].total++;
-    if (deal[CENA_KEY] == 100) brokers[name].ok++;
-    else brokers[name].nie++;
+    if (!brokersMap[name]) brokersMap[name] = { total: 0, ok: 0, nie: 0, deals: [] };
+    brokersMap[name].total++;
+    if (deal[CENA_KEY] == 100) brokersMap[name].ok++;
+    else brokersMap[name].nie++;
+    brokersMap[name].deals.push(deal);
   });
 
-  const brokerList = Object.entries(brokers)
+  const brokerList = Object.entries(brokersMap)
     .map(([name, s]) => ({ name, ...s, pct: s.total > 0 ? Math.round((s.ok / s.total) * 100) : 0 }))
     .sort((a, b) => b.pct - a.pct);
 
-  const totalOk = officeDeals.filter(d => d[CENA_KEY] == 100).length;
+  const totalOk  = officeDeals.filter(d => d[CENA_KEY] == 100).length;
   const totalPct = officeDeals.length > 0 ? Math.round((totalOk / officeDeals.length) * 100) : 0;
-  const health = getHealth(totalPct);
+  const health   = getHealth(totalPct);
 
   const TOP_BRANDS = ["ŠKODA", "VOLKSWAGEN", "BMW", "AUDI", "MERCEDES"];
   const brandStats = TOP_BRANDS.map(brand => {
@@ -84,13 +119,13 @@ export default function DashboardClient() {
     return { brand, count: matches.length, pct };
   });
   const topBrandTotal = brandStats.reduce((a, b) => a + b.count, 0);
-  const topBrandPct = officeDeals.length > 0 ? Math.round((topBrandTotal / officeDeals.length) * 100) : 0;
+  const topBrandPct   = officeDeals.length > 0 ? Math.round((topBrandTotal / officeDeals.length) * 100) : 0;
 
   const officeSummary = Object.keys(OFFICES).filter(o => o !== "Všetky").map(o => {
     const names = OFFICES[o];
-    const od = cleanDeals.filter(d => names.some(n => d.owner_name && d.owner_name.trim().toLowerCase() === n.trim().toLowerCase()));
-    const ok = od.filter(d => d[CENA_KEY] == 100).length;
-    const pct = od.length > 0 ? Math.round((ok / od.length) * 100) : 0;
+    const od    = cleanDeals.filter(d => names.some(n => d.owner_name && d.owner_name.trim().toLowerCase() === n.trim().toLowerCase()));
+    const ok    = od.filter(d => d[CENA_KEY] == 100).length;
+    const pct   = od.length > 0 ? Math.round((ok / od.length) * 100) : 0;
     return { name: o, total: od.length, ok, pct };
   }).sort((a, b) => b.pct - a.pct);
 
@@ -103,7 +138,9 @@ export default function DashboardClient() {
             {dark ? "☀️ Light" : "🌙 Dark"}
           </button>
         </div>
-        <p className={"mb-6 " + (dark ? "text-gray-400" : "text-gray-500")}>Zdravie ponuky – Stage: Inzerované</p>
+        <p className={"mb-6 " + (dark ? "text-gray-400" : "text-gray-500")}>
+          Zdravie ponuky – Stage: Inzerované · klikni na makléra pre detail dealov
+        </p>
 
         {loading && (
           <div className="flex items-center gap-3 text-gray-400 py-12">
@@ -113,6 +150,7 @@ export default function DashboardClient() {
         )}
 
         {!loading && <>
+          {/* Summary cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
             <div className={"rounded-xl p-4 " + cardCls}>
               <p className={"text-sm " + (dark ? "text-gray-400" : "text-gray-500")}>Celkom dealov</p>
@@ -155,15 +193,18 @@ export default function DashboardClient() {
             </div>
           </div>
 
+          {/* Office filter */}
           <div className="flex flex-wrap gap-2 mb-4 md:mb-8">
             {Object.keys(OFFICES).map(o => (
               <button key={o} onClick={() => setOffice(o)}
-                className={"px-4 py-2 rounded-full text-sm font-medium " + (office === o ? "text-white" : btnBase)} style={office === o ? {backgroundColor: "#FF501C"} : {}}>
+                className={"px-4 py-2 rounded-full text-sm font-medium " + (office === o ? "text-white" : btnBase)}
+                style={office === o ? {backgroundColor: "#FF501C"} : {}}>
                 {o}
               </button>
             ))}
           </div>
 
+          {/* Office summary cards */}
           {office === "Všetky" && (
             <div className="mb-8">
               <h2 className="text-xl font-semibold mb-4">Prehľad kancelárií</h2>
@@ -185,38 +226,121 @@ export default function DashboardClient() {
             </div>
           )}
 
+          {/* Broker table with expandable rows */}
           <h2 className="text-xl font-semibold mb-4">
             {office === "Všetky" ? "Všetci makléri" : "Makléri – " + office}
           </h2>
-          <div className="overflow-x-auto"><table className="w-full text-sm min-w-[600px]">
-            <thead className={theadCls}>
-              <tr>
-                <th className="p-3 text-left">#</th>
-                <th className="p-3 text-left">Maklér</th>
-                <th className="p-3 text-left">Celkom</th>
-                <th className="p-3 text-left">Áno</th>
-                <th className="p-3 text-left">Nie</th>
-                <th className="p-3 text-left">Zdravie</th>
-                <th className="p-3 text-left w-40">Graf</th>
-              </tr>
-            </thead>
-            <tbody>
-              {brokerList.map((b, i) => {
-                const h = getHealth(b.pct);
-                return (
-                  <tr key={b.name} className={"border-t " + rowCls}>
-                    <td className="p-3 text-gray-500">{i + 1}</td>
-                    <td className="p-3 font-medium">{b.name}</td>
-                    <td className="p-3">{b.total}</td>
-                    <td className="p-3 text-green-400">{b.ok}</td>
-                    <td className="p-3 text-red-400">{b.nie}</td>
-                    <td className={"p-3 font-bold " + h.color}>{b.pct}%</td>
-                    <td className="p-3"><HealthBar pct={b.pct} dark={dark} /></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table></div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[650px]">
+              <thead className={theadCls} style={theadStyle}>
+                <tr>
+                  <th className="p-3 text-left w-8"></th>
+                  <th className="p-3 text-left">#</th>
+                  <th className="p-3 text-left">Maklér</th>
+                  <th className="p-3 text-left">Celkom</th>
+                  <th className="p-3 text-left">Áno</th>
+                  <th className="p-3 text-left">Nie</th>
+                  <th className="p-3 text-left">Zdravie</th>
+                  <th className="p-3 text-left w-40">Graf</th>
+                </tr>
+              </thead>
+              <tbody>
+                {brokerList.map((b, i) => {
+                  const h      = getHealth(b.pct);
+                  const isOpen = !!expanded[b.name];
+                  // Sort deals: nie OK first, then by price diff descending
+                  const sortedDeals = [...b.deals].sort((a, z) => {
+                    const aOk = a[CENA_KEY] == 100;
+                    const zOk = z[CENA_KEY] == 100;
+                    if (!aOk && zOk) return -1;
+                    if (aOk && !zOk) return 1;
+                    const aDiff = getPriceDiff(a.value, a[ODP_AUTORRO]) ?? 0;
+                    const zDiff = getPriceDiff(z.value, z[ODP_AUTORRO]) ?? 0;
+                    return zDiff - aDiff;
+                  });
+
+                  return (
+                    <>
+                      {/* Broker summary row */}
+                      <tr key={b.name}
+                        className={"border-t cursor-pointer hover:opacity-80 " + rowCls}
+                        onClick={() => toggleExpand(b.name)}>
+                        <td className="p-3 text-center text-gray-400 select-none text-base">
+                          {isOpen ? "▾" : "▸"}
+                        </td>
+                        <td className="p-3 text-gray-500">{i + 1}</td>
+                        <td className="p-3 font-medium">{b.name}</td>
+                        <td className="p-3">{b.total}</td>
+                        <td className="p-3 text-green-400">{b.ok}</td>
+                        <td className="p-3 text-red-400">{b.nie}</td>
+                        <td className={"p-3 font-bold " + h.color}>{b.pct}%</td>
+                        <td className="p-3"><HealthBar pct={b.pct} dark={dark} /></td>
+                      </tr>
+
+                      {/* Expanded deal detail */}
+                      {isOpen && (
+                        <tr key={b.name + "_detail"} className={"border-t " + rowCls}>
+                          <td colSpan={8} className="p-0">
+                            <div className="border-l-4 mx-2 mb-2 rounded-lg overflow-hidden" style={{ borderColor: "#FF501C" }}>
+                              <table className="w-full text-xs min-w-[750px]">
+                                <thead style={subHeadStyle}>
+                                  <tr className={theadCls}>
+                                    <th className="px-3 py-2 text-left">ID</th>
+                                    <th className="px-3 py-2 text-left">Názov dealu</th>
+                                    <th className="px-3 py-2 text-left">Otvorený</th>
+                                    <th className="px-3 py-2 text-left">Cena vozidla</th>
+                                    <th className="px-3 py-2 text-left">Odp. cena Autorro</th>
+                                    <th className="px-3 py-2 text-left">% rozdiel vs Autorro</th>
+                                    <th className="px-3 py-2 text-left">Cena OK</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {sortedDeals.map(d => {
+                                    const cenaOk   = d[CENA_KEY] == 100;
+                                    const odAut    = d[ODP_AUTORRO];
+                                    const odMak    = d[ODP_MAKLER];
+                                    const diff     = getPriceDiff(d.value, odAut);
+                                    const rowBg    = !cenaOk && diff > 10
+                                      ? (dark ? "bg-red-950" : "bg-red-50")
+                                      : !cenaOk
+                                      ? (dark ? "bg-yellow-950" : "bg-yellow-50")
+                                      : "";
+                                    return (
+                                      <tr key={d.id} className={"border-t " + subRowCls + " " + rowBg}>
+                                        <td className="px-3 py-2 text-gray-500 font-mono">#{d.id}</td>
+                                        <td className="px-3 py-2 font-medium max-w-[200px] truncate" title={d.title}>
+                                          <a href={`https://autorro.pipedrive.com/deal/${d.id}`}
+                                            target="_blank" rel="noopener noreferrer"
+                                            className="hover:underline" style={{ color: "#FF501C" }}
+                                            onClick={e => e.stopPropagation()}>
+                                            {d.title || "—"}
+                                          </a>
+                                        </td>
+                                        <td className="px-3 py-2">{fmt(d.add_time)}</td>
+                                        <td className="px-3 py-2 font-medium">{fmtMoney(d.value, d.currency)}</td>
+                                        <td className="px-3 py-2">{fmtMoney(odAut, d.currency)}</td>
+                                        <td className="px-3 py-2"><PriceDiffBadge diff={diff} /></td>
+                                        <td className="px-3 py-2">
+                                          {cenaOk
+                                            ? <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">✓ Áno</span>
+                                            : <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">✗ Nie</span>
+                                          }
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </>}
       </div>
     </div>

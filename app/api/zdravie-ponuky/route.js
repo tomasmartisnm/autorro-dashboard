@@ -1,7 +1,15 @@
 const INZEROVANE_STAGES = [13, 31, 34, 22];
-const CACHE_TTL = 10 * 60 * 1000; // 10 minút
+const CACHE_TTL = 10 * 60 * 1000;
 
 let cache = { data: null, timestamp: 0 };
+
+const FIELDS = [
+  "id", "title", "owner_id", "owner_name", "stage_id", "value", "currency",
+  "status", "add_time",
+  "880011fdbacbc3eee50103ec49001ac8abd56ae1", // Cena je OK
+  "b4d54b0e06789b713abe1062178c19490259e00a", // Odporúčaná cena - AUTORRO
+  "be22b659e743dc6999971965c384c727f3b1f35b", // Odporúčaná cena - MAKLÉR
+].join(",");
 
 async function fetchAllDeals() {
   const apiToken = process.env.PIPEDRIVE_API_TOKEN;
@@ -11,7 +19,7 @@ async function fetchAllDeals() {
     let start = 0;
     while (true) {
       const response = await fetch(
-        `https://api.pipedrive.com/v1/deals?api_token=${apiToken}&limit=100&start=${start}&status=open&stage_id=${stageId}&fields=id,title,owner_id,stage_id,value,currency,status,880011fdbacbc3eee50103ec49001ac8abd56ae1`
+        `https://api.pipedrive.com/v1/deals?api_token=${apiToken}&limit=100&start=${start}&status=open&stage_id=${stageId}&fields=${FIELDS}`
       );
       const data = await response.json();
       all = all.concat(data.data || []);
