@@ -1,5 +1,5 @@
-import DashboardClient from "./DashboardClient";
+import SalesLeaderboardClient from "./SalesLeaderboardClient";
 
 export default function Home() {
-  return <DashboardClient />;
+  return <SalesLeaderboardClient />;
 }

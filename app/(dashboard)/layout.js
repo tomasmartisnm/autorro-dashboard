@@ -4,13 +4,14 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 const NAV_ITEMS = [
-  { href: "/",              icon: "🏥", label: "Zdravie ponuky" },
-  { href: "/trend",         icon: "📈", label: "Trend zdravia" },
-  { href: "/reakčný-čas",  icon: "⚡", label: "Reakčný čas" },
-  { href: "/cas-predaja",   icon: "🕐", label: "Čas predaja" },
-  { href: "/konverzia",     icon: "🎯", label: "Konverzia leadov" },
-  { href: "/users",         icon: "👥", label: "Používatelia" },
-  { href: "/zmena-hesla",   icon: "🔑", label: "Zmena hesla" },
+  { href: "/",                icon: "🏆", label: "Leaderboard predaja" },
+  { href: "/zdravie-ponuky",  icon: "🏥", label: "Zdravie ponuky" },
+  { href: "/trend",           icon: "📈", label: "Trend zdravia" },
+  { href: "/reakčný-čas",    icon: "⚡", label: "Reakčný čas" },
+  { href: "/cas-predaja",     icon: "🕐", label: "Čas predaja" },
+  { href: "/konverzia",       icon: "🎯", label: "Konverzia leadov" },
+  { href: "/users",           icon: "👥", label: "Používatelia" },
+  { href: "/zmena-hesla",     icon: "🔑", label: "Zmena hesla" },
 ];
 
 function NavLink({ href, icon, label, onClick }) {
