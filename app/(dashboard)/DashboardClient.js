@@ -143,11 +143,12 @@ export default function DashboardClient() {
   const [office, setOffice]     = useState("Všetky");
   const [dark, setDark]         = useState(false);
   const [expanded, setExpanded] = useState({});
-  const [partyMode, setPartyMode]       = useState(false);
-  const [showFireworks, setShowFireworks] = useState(false);
-  const [countdown, setCountdown]       = useState(REFRESH_SEC);
-  const [history, setHistory]           = useState([]); // [{time, health:{name:pct}, prices}]
-  const [refreshing, setRefreshing]     = useState(false);
+  const [partyMode, setPartyMode]           = useState(false);
+  const [showFireworks, setShowFireworks]   = useState(false);
+  const [countdown, setCountdown]           = useState(REFRESH_SEC);
+  const [history, setHistory]               = useState([]); // [{time, health:{name:pct}, prices}]
+  const [refreshing, setRefreshing]         = useState(false);
+  const [partyResults, setPartyResults]     = useState(null); // výsledky po ukončení party
   const baselineRef       = useRef(null);
   const baselinePricesRef = useRef(null);
   const intervalRef       = useRef(null);
@@ -261,12 +262,19 @@ export default function DashboardClient() {
                   baselineRef.current = null;
                   baselinePricesRef.current = null;
                   setHistory([]);
+                  setPartyResults(null);
                   setPartyMode(true);
                   setShowFireworks(true);
                   setTimeout(() => setShowFireworks(false), 3500);
                   // Ihneď načítaj čerstvé dáta — leaderboard sa zobrazí okamžite
                   setTimeout(() => loadDeals(true), 50);
                 } else {
+                  // Ulož výsledky pred vypnutím — zostanú viditeľné
+                  setPartyResults({
+                    history: history,
+                    baseline: baselineRef.current,
+                    baselinePrices: baselinePricesRef.current,
+                  });
                   setPartyMode(false);
                 }
               }}
@@ -306,12 +314,15 @@ export default function DashboardClient() {
           </div>
         )}
 
-        {!loading && partyMode && history.length > 0 && (() => {
-          const snap          = history[history.length - 1];
+        {(partyMode ? history.length > 0 : !!partyResults) && !loading && (() => {
+          const activeHistory      = partyMode ? history        : partyResults.history;
+          const activeBaseline     = partyMode ? baselineRef.current     : partyResults.baseline;
+          const activeBasePrices   = partyMode ? baselinePricesRef.current : partyResults.baselinePrices;
+          const snap          = activeHistory[activeHistory.length - 1];
           const latest        = snap.health;
           const latestPrices  = snap.prices || {};
-          const baseline      = baselineRef.current || latest;
-          const baselinePrices = baselinePricesRef.current || latestPrices;
+          const baseline      = activeBaseline || latest;
+          const baselinePrices = activeBasePrices || latestPrices;
           const officeNames   = office === "Všetky" ? null : (OFFICES[office] || []);
 
           // ── Zníženia cien per deal ────────────────────────────────
@@ -349,7 +360,7 @@ export default function DashboardClient() {
             .map(([name, pct]) => {
               const base         = baseline[name] ?? pct;
               const delta        = pct - base;
-              const hist         = history.map(h => h.health[name] ?? base);
+              const hist         = activeHistory.map(h => h.health[name] ?? base);
               const priceReduced = reductionByBroker[norm(name)] || 0;
               return { name, pct, base, delta, hist, priceReduced };
             })
@@ -358,12 +369,28 @@ export default function DashboardClient() {
           const medals = ["🥇", "🥈", "🥉"];
           return (
             <>
+              {/* Celkový banner so znížením */}
+              {totalReduction > 0 && (
+                <div className="rounded-xl px-5 py-4 mb-3 flex flex-wrap items-center justify-between gap-3"
+                  style={{ background: "linear-gradient(135deg, #052e16 0%, #14532d 100%)", border: "2px solid #22c55e" }}>
+                  <div>
+                    <p className="text-green-300 text-xs font-semibold uppercase tracking-wider mb-0.5">💰 Celkové zníženie cien od startu</p>
+                    <p className="text-white text-3xl font-extrabold">−{fmtMoney(totalReduction, "EUR")}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-green-400 text-sm">{reducedDeals.length} vozidiel znížených</p>
+                    {office !== "Všetky" && <p className="text-green-300 text-xs">📍 kancelária {office}</p>}
+                  </div>
+                </div>
+              )}
+
               {/* Leaderboard */}
               <div className={"rounded-xl p-4 mb-4 " + cardCls} style={{ ...(dark ? { backgroundColor: "#3d0e2a" } : { backgroundColor: "#fff7f5" }), border: "2px solid #FF501C" }}>
                 <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
-                  <h2 className="text-lg font-bold flex items-center gap-2">🏆 Live leaderboard
+                  <h2 className="text-lg font-bold flex items-center gap-2">
+                    {partyMode ? "🏆 Live leaderboard" : "🏆 Výsledky party"}
                     <span className="text-xs font-normal px-2 py-0.5 rounded-full" style={{ backgroundColor: "#FF501C", color: "white" }}>
-                      {history.length} snapshots
+                      {activeHistory.length} snapshots
                     </span>
                     {office !== "Všetky" && (
                       <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">
@@ -371,13 +398,14 @@ export default function DashboardClient() {
                       </span>
                     )}
                   </h2>
-                  <div className="flex items-center gap-3">
-                    {totalReduction > 0 && (
-                      <span className="text-sm font-semibold text-green-600">
-                        💰 Celkom znížené: <span className="font-extrabold">−{fmtMoney(totalReduction, "EUR")}</span>
-                      </span>
-                    )}
+                  <div className="flex items-center gap-2">
                     <span className={"text-xs " + (dark ? "text-gray-400" : "text-gray-500")}>Zoradené podľa zlepšenia</span>
+                    {!partyMode && (
+                      <button onClick={() => setPartyResults(null)}
+                        className="ml-2 text-xs px-3 py-1 rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300 font-medium">
+                        ✕ Zavrieť
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">
