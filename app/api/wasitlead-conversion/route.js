@@ -10,19 +10,19 @@ async function fetchAllPages(apiToken, status) {
   let start = 0;
   while (true) {
     const res = await fetch(
-      `https://api.pipedrive.com/v1/deals?api_token=${apiToken}&limit=500&start=${start}&status=${status}&fields=id,title,stage_id,status,owner_id,${WASITLEAD_KEY}`
+      `https://api.pipedrive.com/v1/deals?api_token=${apiToken}&limit=500&start=${start}&status=${status}&fields=id,title,stage_id,status,owner_id,add_time,${WASITLEAD_KEY}`
     );
     const json = await res.json();
     const items = json.data || [];
     for (const d of items) {
       if (String(d[WASITLEAD_KEY]) !== WASITLEAD_YES) continue;
-      // owner_id is an object {id, name, email, ...} in Pipedrive
       const ownerName = d.owner_id?.name || d.owner_name || "Neznámy";
       deals.push({
         id: d.id,
         owner_name: ownerName,
-        status: d.status,       // "open", "won", "lost"
-        stage_id: d.stage_id,  // current stage
+        status: d.status,
+        stage_id: d.stage_id,
+        add_time: d.add_time, // "2024-03-15 10:30:00"
       });
     }
     if (!json.additional_data?.pagination?.more_items_in_collection) break;
@@ -53,43 +53,8 @@ async function fetchData() {
     return false;
   }
 
-  // Aggregate per broker
-  const ownerMap = {};
-  for (const d of allDeals) {
-    const name = d.owner_name;
-    if (!ownerMap[name]) ownerMap[name] = { total: 0, inzerovane: 0, won: 0, lost: 0 };
-    ownerMap[name].total++;
-    if (reachedInzerovane(d)) {
-      ownerMap[name].inzerovane++;
-    }
-    if (d.status === "won") ownerMap[name].won++;
-    if (d.status === "lost") ownerMap[name].lost++;
-  }
-
-  const byBroker = Object.entries(ownerMap)
-    .map(([name, s]) => ({
-      name,
-      total: s.total,
-      inzerovane: s.inzerovane,
-      won: s.won,
-      lost: s.lost,
-      pct: s.total > 0 ? Math.round((s.inzerovane / s.total) * 100) : 0,
-    }))
-    .sort((a, b) => b.pct - a.pct);
-
-  const totalLeads = allDeals.length;
-  const totalInzerovane = allDeals.filter(d => reachedInzerovane(d)).length;
-  const totalWon = allDeals.filter(d => d.status === "won").length;
-  const totalLost = allDeals.filter(d => d.status === "lost").length;
-
-  return {
-    totalLeads,
-    totalInzerovane,
-    totalWon,
-    totalLost,
-    conversionPct: totalLeads > 0 ? Math.round((totalInzerovane / totalLeads) * 100) : 0,
-    byBroker,
-  };
+  // Return raw deals — client does filtering & aggregation
+  return { deals: allDeals };
 }
 
 export async function GET() {
