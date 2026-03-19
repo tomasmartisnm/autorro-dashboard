@@ -31,9 +31,12 @@ async function fetchAllDeals() {
   return all;
 }
 
-export async function GET() {
+export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const force = searchParams.get("force") === "1";
   const now = Date.now();
-  if (cache.data && now - cache.timestamp < CACHE_TTL) {
+
+  if (!force && cache.data && now - cache.timestamp < CACHE_TTL) {
     return Response.json(cache.data, {
       headers: { "X-Cache": "HIT", "Cache-Control": "public, max-age=600" },
     });
@@ -43,6 +46,6 @@ export async function GET() {
   cache = { data, timestamp: now };
 
   return Response.json(data, {
-    headers: { "X-Cache": "MISS", "Cache-Control": "public, max-age=600" },
+    headers: { "X-Cache": "MISS", "Cache-Control": "no-store" },
   });
 }

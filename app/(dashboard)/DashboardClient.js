@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const OFFICES = {
   "Všetky": null,
@@ -60,19 +60,66 @@ function PriceDiffBadge({ diff }) {
   return <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">{diff}% ↓</span>;
 }
 
+const REFRESH_SEC = 30;
+
+function computeBrokerHealth(deals) {
+  const map = {};
+  deals.forEach(d => {
+    const name = d.owner_name || "Neznámy";
+    if (EXCLUDE.includes(name)) return;
+    if (!map[name]) map[name] = { ok: 0, total: 0 };
+    map[name].total++;
+    if (d[CENA_KEY] == 100) map[name].ok++;
+  });
+  const out = {};
+  Object.entries(map).forEach(([name, s]) => {
+    out[name] = s.total > 0 ? Math.round((s.ok / s.total) * 100) : 0;
+  });
+  return out;
+}
+
 export default function DashboardClient() {
-  const [deals, setDeals]     = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [office, setOffice]   = useState("Všetky");
-  const [dark, setDark]       = useState(false);
+  const [deals, setDeals]       = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [office, setOffice]     = useState("Všetky");
+  const [dark, setDark]         = useState(false);
   const [expanded, setExpanded] = useState({});
+  const [partyMode, setPartyMode] = useState(false);
+  const [countdown, setCountdown] = useState(REFRESH_SEC);
+  const [history, setHistory]   = useState([]); // [{time, health:{name:pct}}]
+  const [refreshing, setRefreshing] = useState(false);
+  const baselineRef = useRef(null);
+  const intervalRef = useRef(null);
+  const countdownRef = useRef(null);
+
+  function loadDeals(force = false) {
+    setRefreshing(true);
+    fetch("/api/zdravie-ponuky" + (force ? "?force=1" : ""))
+      .then(r => r.json())
+      .then(data => {
+        setDeals(data);
+        setLoading(false);
+        setRefreshing(false);
+        const health = computeBrokerHealth(data);
+        if (!baselineRef.current) baselineRef.current = health;
+        setHistory(h => [...h.slice(-9), { time: new Date().toLocaleTimeString("sk-SK", { hour: "2-digit", minute: "2-digit", second: "2-digit" }), health }]);
+      })
+      .catch(() => { setLoading(false); setRefreshing(false); });
+  }
+
+  useEffect(() => { loadDeals(false); }, []);
 
   useEffect(() => {
-    fetch("/api/zdravie-ponuky")
-      .then(r => r.json())
-      .then(data => { setDeals(data); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, []);
+    if (!partyMode) {
+      clearInterval(intervalRef.current);
+      clearInterval(countdownRef.current);
+      return;
+    }
+    setCountdown(REFRESH_SEC);
+    intervalRef.current = setInterval(() => { loadDeals(true); setCountdown(REFRESH_SEC); }, REFRESH_SEC * 1000);
+    countdownRef.current = setInterval(() => setCountdown(c => c > 0 ? c - 1 : 0), 1000);
+    return () => { clearInterval(intervalRef.current); clearInterval(countdownRef.current); };
+  }, [partyMode]);
 
   function toggleExpand(name) { setExpanded(e => ({ ...e, [name]: !e[name] })); }
 
@@ -134,12 +181,26 @@ export default function DashboardClient() {
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-1">
           <h1 className="text-3xl font-bold">Autorro Dashboard</h1>
-          <button onClick={() => setDark(!dark)} className={"px-4 py-2 rounded-full text-sm font-medium " + btnBase}>
-            {dark ? "☀️ Light" : "🌙 Dark"}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setPartyMode(p => !p); if (!partyMode) { baselineRef.current = null; setHistory([]); } }}
+              className={"px-4 py-2 rounded-full text-sm font-bold transition-all " + (partyMode ? "text-white animate-pulse" : btnBase)}
+              style={partyMode ? { backgroundColor: "#FF501C" } : {}}>
+              {partyMode ? "🎉 LIVE" : "🎉 Party Mode"}
+            </button>
+            <button onClick={() => setDark(!dark)} className={"px-4 py-2 rounded-full text-sm font-medium " + btnBase}>
+              {dark ? "☀️" : "🌙"}
+            </button>
+          </div>
         </div>
         <p className={"mb-6 " + (dark ? "text-gray-400" : "text-gray-500")}>
-          Zdravie ponuky – Stage: Inzerované · klikni na makléra pre detail dealov
+          {partyMode
+            ? <span className="flex items-center gap-2">
+                <span className="inline-block w-2 h-2 rounded-full bg-green-400 animate-ping" />
+                Live – obnovuje sa každých {REFRESH_SEC}s · ďalší refresh za <strong>{countdown}s</strong>
+                {refreshing && <span className="ml-2 text-orange-400">⟳ načítavam…</span>}
+              </span>
+            : "Zdravie ponuky – Stage: Inzerované · klikni na makléra pre detail dealov"}
         </p>
 
         {loading && (
@@ -158,6 +219,70 @@ export default function DashboardClient() {
             <div className={"rounded-xl h-64 " + (dark ? "bg-[#5c1a42]" : "bg-gray-100")} />
           </div>
         )}
+
+        {!loading && partyMode && history.length > 0 && (() => {
+          const latest = history[history.length - 1].health;
+          const baseline = baselineRef.current || latest;
+          const officeNames = office === "Všetky" ? null : (OFFICES[office] || []);
+          const partyBrokers = Object.entries(latest)
+            .filter(([name]) => !officeNames || officeNames.some(n => n.trim().toLowerCase() === name.trim().toLowerCase()))
+            .map(([name, pct]) => {
+              const base = baseline[name] ?? pct;
+              const delta = pct - base;
+              const hist = history.map(h => h.health[name] ?? base);
+              return { name, pct, base, delta, hist };
+            })
+            .sort((a, b) => b.delta !== a.delta ? b.delta - a.delta : b.pct - a.pct);
+
+          const medals = ["🥇", "🥈", "🥉"];
+          return (
+            <div className={"rounded-xl p-4 mb-6 " + cardCls} style={{ ...(dark ? { backgroundColor: "#3d0e2a" } : { backgroundColor: "#fff7f5" }), border: "2px solid #FF501C" }}>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-bold flex items-center gap-2">🏆 Live leaderboard
+                  <span className="text-xs font-normal px-2 py-0.5 rounded-full" style={{ backgroundColor: "#FF501C", color: "white" }}>
+                    {history.length} snapshots
+                  </span>
+                </h2>
+                <span className={"text-xs " + (dark ? "text-gray-400" : "text-gray-500")}>Zoradené podľa zlepšenia od startu</span>
+              </div>
+              <div className="flex flex-col gap-2">
+                {partyBrokers.map((b, i) => {
+                  const h = getHealth(b.pct);
+                  const barW = Math.max(b.pct, 2);
+                  const barColor = b.pct >= 50 ? "#22c55e" : b.pct >= 35 ? "#eab308" : "#ef4444";
+                  return (
+                    <div key={b.name} className={"rounded-lg p-3 " + (dark ? "bg-[#481132]" : "bg-white shadow-sm")}>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-lg w-7 text-center">{medals[i] || `${i + 1}.`}</span>
+                        <span className="font-semibold flex-1 text-sm">{b.name}</span>
+                        <span className={"font-bold text-sm " + h.color}>{b.pct}%</span>
+                        <span className={"text-sm font-bold px-2 py-0.5 rounded-full " + (b.delta > 0 ? "bg-green-100 text-green-700" : b.delta < 0 ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-500")}>
+                          {b.delta > 0 ? `+${b.delta}%` : b.delta < 0 ? `${b.delta}%` : "—"}
+                          {b.delta > 0 ? " ↑" : b.delta < 0 ? " ↓" : ""}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className={"flex-1 rounded-full h-2.5 " + (dark ? "bg-gray-700" : "bg-gray-100")}>
+                          <div className="h-2.5 rounded-full transition-all duration-500" style={{ width: barW + "%", backgroundColor: barColor }} />
+                        </div>
+                        {/* Mini history dots */}
+                        <div className="flex gap-0.5 items-end h-4">
+                          {b.hist.map((v, j) => (
+                            <div key={j} className="w-1.5 rounded-sm transition-all" style={{
+                              height: Math.max(4, Math.round((v / 100) * 16)) + "px",
+                              backgroundColor: v >= 50 ? "#22c55e" : v >= 35 ? "#eab308" : "#ef4444",
+                              opacity: 0.4 + (j / b.hist.length) * 0.6
+                            }} />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         {!loading && <>
           {/* Summary cards */}
