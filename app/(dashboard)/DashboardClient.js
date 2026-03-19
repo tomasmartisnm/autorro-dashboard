@@ -240,25 +240,23 @@ export default function DashboardClient() {
           <h2 className="text-xl font-semibold mb-4">
             {office === "Všetky" ? "Všetci makléri" : "Makléri – " + office}
           </h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[650px]">
+          <table className="w-full text-sm">
               <thead className={theadCls} style={theadStyle}>
                 <tr>
                   <th className="p-3 text-left w-8"></th>
-                  <th className="p-3 text-left">#</th>
+                  <th className="p-3 text-left hidden md:table-cell">#</th>
                   <th className="p-3 text-left">Maklér</th>
                   <th className="p-3 text-left">Celkom</th>
-                  <th className="p-3 text-left">Áno</th>
-                  <th className="p-3 text-left">Nie</th>
+                  <th className="p-3 text-left hidden md:table-cell">Áno</th>
+                  <th className="p-3 text-left hidden md:table-cell">Nie</th>
                   <th className="p-3 text-left">Zdravie</th>
-                  <th className="p-3 text-left w-40">Graf</th>
+                  <th className="p-3 text-left w-32 hidden md:table-cell">Graf</th>
                 </tr>
               </thead>
               <tbody>
                 {brokerList.map((b, i) => {
                   const h      = getHealth(b.pct);
                   const isOpen = !!expanded[b.name];
-                  // Sort deals: nie OK first, then by price diff descending
                   const sortedDeals = [...b.deals].sort((a, z) => {
                     const aOk = a[CENA_KEY] == 100;
                     const zOk = z[CENA_KEY] == 100;
@@ -271,28 +269,60 @@ export default function DashboardClient() {
 
                   return (
                     <>
-                      {/* Broker summary row */}
                       <tr key={b.name}
                         className={"border-t cursor-pointer hover:opacity-80 " + rowCls}
                         onClick={() => toggleExpand(b.name)}>
-                        <td className="p-3 text-center text-gray-400 select-none text-base">
-                          {isOpen ? "▾" : "▸"}
-                        </td>
-                        <td className="p-3 text-gray-500">{i + 1}</td>
+                        <td className="p-3 text-center text-gray-400 select-none text-base">{isOpen ? "▾" : "▸"}</td>
+                        <td className="p-3 text-gray-500 hidden md:table-cell">{i + 1}</td>
                         <td className="p-3 font-medium">{b.name}</td>
                         <td className="p-3">{b.total}</td>
-                        <td className="p-3 text-green-400">{b.ok}</td>
-                        <td className="p-3 text-red-400">{b.nie}</td>
+                        <td className="p-3 text-green-400 hidden md:table-cell">{b.ok}</td>
+                        <td className="p-3 text-red-400 hidden md:table-cell">{b.nie}</td>
                         <td className={"p-3 font-bold " + h.color}>{b.pct}%</td>
-                        <td className="p-3"><HealthBar pct={b.pct} dark={dark} /></td>
+                        <td className="p-3 hidden md:table-cell"><HealthBar pct={b.pct} dark={dark} /></td>
                       </tr>
 
-                      {/* Expanded deal detail */}
                       {isOpen && (
                         <tr key={b.name + "_detail"} className={"border-t " + rowCls}>
-                          <td colSpan={8} className="p-0">
-                            <div className="border-l-4 mx-2 mb-2 rounded-lg overflow-hidden" style={{ borderColor: "#FF501C" }}>
-                              <table className="w-full text-xs min-w-[750px]">
+                          <td colSpan={8} className="p-2">
+                            <div className="border-l-4 rounded-lg overflow-hidden" style={{ borderColor: "#FF501C" }}>
+                              {/* Mobile: cards */}
+                              <div className="md:hidden flex flex-col gap-2 p-2">
+                                {sortedDeals.map(d => {
+                                  const cenaOk  = d[CENA_KEY] == 100;
+                                  const cenaVoz = d[CENA_VOZIDLA];
+                                  const odAut   = d[ODP_AUTORRO];
+                                  const diff    = getPriceDiff(cenaVoz, odAut);
+                                  const cardBg  = !cenaOk && diff > 10
+                                    ? (dark ? "bg-red-950" : "bg-red-50 border border-red-200")
+                                    : !cenaOk
+                                    ? (dark ? "bg-yellow-950" : "bg-yellow-50 border border-yellow-200")
+                                    : (dark ? "bg-gray-800" : "bg-white border border-gray-100");
+                                  return (
+                                    <div key={d.id} className={"rounded-lg p-3 text-xs " + cardBg}>
+                                      <div className="flex justify-between items-start mb-2">
+                                        <a href={`https://autorro.pipedrive.com/deal/${d.id}`}
+                                          target="_blank" rel="noopener noreferrer"
+                                          className="font-semibold hover:underline leading-tight" style={{ color: "#FF501C" }}
+                                          onClick={e => e.stopPropagation()}>
+                                          {d.title || "—"}
+                                        </a>
+                                        {cenaOk
+                                          ? <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 shrink-0">✓ OK</span>
+                                          : <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 shrink-0">✗ Nie</span>}
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-1 text-gray-500">
+                                        <span>#{d.id}</span><span>{fmt(d.add_time)}</span>
+                                        <span>Cena: <span className="font-medium text-gray-800">{fmtMoney(cenaVoz, d.currency)}</span></span>
+                                        <span>Odp: <span className="font-medium text-gray-800">{fmtMoney(odAut, d.currency)}</span></span>
+                                      </div>
+                                      {diff !== null && <div className="mt-1"><PriceDiffBadge diff={diff} /></div>}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              {/* Desktop: table */}
+                              <table className="hidden md:table w-full text-xs">
                                 <thead style={subHeadStyle}>
                                   <tr className={theadCls}>
                                     <th className="px-3 py-2 text-left">ID</th>
@@ -300,21 +330,19 @@ export default function DashboardClient() {
                                     <th className="px-3 py-2 text-left">Otvorený</th>
                                     <th className="px-3 py-2 text-left">Cena vozidla</th>
                                     <th className="px-3 py-2 text-left">Odp. cena Autorro</th>
-                                    <th className="px-3 py-2 text-left">% rozdiel vs Autorro</th>
+                                    <th className="px-3 py-2 text-left">% rozdiel</th>
                                     <th className="px-3 py-2 text-left">Cena OK</th>
                                   </tr>
                                 </thead>
                                 <tbody>
                                   {sortedDeals.map(d => {
-                                    const cenaOk   = d[CENA_KEY] == 100;
-                                    const cenaVoz  = d[CENA_VOZIDLA];
-                                    const odAut    = d[ODP_AUTORRO];
-                                    const diff     = getPriceDiff(cenaVoz, odAut);
-                                    const rowBg    = !cenaOk && diff > 10
+                                    const cenaOk  = d[CENA_KEY] == 100;
+                                    const cenaVoz = d[CENA_VOZIDLA];
+                                    const odAut   = d[ODP_AUTORRO];
+                                    const diff    = getPriceDiff(cenaVoz, odAut);
+                                    const rowBg   = !cenaOk && diff > 10
                                       ? (dark ? "bg-red-950" : "bg-red-50")
-                                      : !cenaOk
-                                      ? (dark ? "bg-yellow-950" : "bg-yellow-50")
-                                      : "";
+                                      : !cenaOk ? (dark ? "bg-yellow-950" : "bg-yellow-50") : "";
                                     return (
                                       <tr key={d.id} className={"border-t " + subRowCls + " " + rowBg}>
                                         <td className="px-3 py-2 text-gray-500 font-mono">#{d.id}</td>
@@ -333,8 +361,7 @@ export default function DashboardClient() {
                                         <td className="px-3 py-2">
                                           {cenaOk
                                             ? <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">✓ Áno</span>
-                                            : <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">✗ Nie</span>
-                                          }
+                                            : <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">✗ Nie</span>}
                                         </td>
                                       </tr>
                                     );
@@ -350,7 +377,6 @@ export default function DashboardClient() {
                 })}
               </tbody>
             </table>
-          </div>
         </>}
       </div>
     </div>

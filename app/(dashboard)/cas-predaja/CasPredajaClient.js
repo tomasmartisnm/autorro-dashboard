@@ -223,95 +223,118 @@ export default function CasPredajaClient() {
             <h2 className="text-xl font-semibold mb-4">
               {office === "Všetky" ? "Všetci makléri" : "Makléri – " + office}
             </h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[700px]">
-                <thead className={theadCls} style={theadStyle}>
-                  <tr>
-                    <th className="p-3 text-left w-8"></th>
-                    <th className="p-3 text-left">#</th>
-                    <th className="p-3 text-left">Maklér</th>
-                    <th className="p-3 text-left">Dealov</th>
-                    <th className="p-3 text-left">Priem. čas</th>
-                    <th className="p-3 text-left">Min</th>
-                    <th className="p-3 text-left">Max</th>
-                    <th className="p-3 text-left">Rýchlosť</th>
-                    <th className="p-3 text-left w-36">Graf</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {brokerList.map((b, i) => {
-                    const s = getSpeed(b.avg);
-                    const isOpen = !!expanded[b.name];
-                    return (
-                      <>
-                        {/* Broker summary row */}
-                        <tr key={b.name}
-                          className={"border-t cursor-pointer hover:opacity-80 " + rowCls}
-                          onClick={() => b.deals.length > 0 && toggleExpand(b.name)}>
-                          <td className="p-3 text-center text-gray-400 select-none">
-                            {b.deals.length > 0 ? (isOpen ? "▾" : "▸") : ""}
-                          </td>
-                          <td className="p-3 text-gray-500">{i + 1}</td>
-                          <td className="p-3 font-medium">{b.name}</td>
-                          <td className="p-3">{b.count || "—"}</td>
-                          <td className={"p-3 font-bold " + s.color}>{b.avg !== null ? b.avg + "d" : "—"}</td>
-                          <td className="p-3 text-green-400">{b.min !== null ? b.min + "d" : "—"}</td>
-                          <td className="p-3 text-red-400">{b.max !== null ? b.max + "d" : "—"}</td>
-                          <td className={"p-3 " + s.color}>{s.label}</td>
-                          <td className="p-3"><SpeedBar avg={b.avg} dark={dark} /></td>
-                        </tr>
+          <table className="w-full text-sm">
+              <thead className={theadCls} style={theadStyle}>
+                <tr>
+                  <th className="p-3 text-left w-8"></th>
+                  <th className="p-3 text-left hidden md:table-cell">#</th>
+                  <th className="p-3 text-left">Maklér</th>
+                  <th className="p-3 text-left hidden md:table-cell">Dealov</th>
+                  <th className="p-3 text-left">Priem.</th>
+                  <th className="p-3 text-left hidden md:table-cell">Min</th>
+                  <th className="p-3 text-left hidden md:table-cell">Max</th>
+                  <th className="p-3 text-left">Rýchlosť</th>
+                  <th className="p-3 text-left w-32 hidden md:table-cell">Graf</th>
+                </tr>
+              </thead>
+              <tbody>
+                {brokerList.map((b, i) => {
+                  const s = getSpeed(b.avg);
+                  const isOpen = !!expanded[b.name];
+                  return (
+                    <>
+                      <tr key={b.name}
+                        className={"border-t cursor-pointer hover:opacity-80 " + rowCls}
+                        onClick={() => b.deals.length > 0 && toggleExpand(b.name)}>
+                        <td className="p-3 text-center text-gray-400 select-none">
+                          {b.deals.length > 0 ? (isOpen ? "▾" : "▸") : ""}
+                        </td>
+                        <td className="p-3 text-gray-500 hidden md:table-cell">{i + 1}</td>
+                        <td className="p-3 font-medium">{b.name}</td>
+                        <td className="p-3 hidden md:table-cell">{b.count || "—"}</td>
+                        <td className={"p-3 font-bold " + s.color}>{b.avg !== null ? b.avg + "d" : "—"}</td>
+                        <td className="p-3 text-green-400 hidden md:table-cell">{b.min !== null ? b.min + "d" : "—"}</td>
+                        <td className="p-3 text-red-400 hidden md:table-cell">{b.max !== null ? b.max + "d" : "—"}</td>
+                        <td className={"p-3 " + s.color}>{s.label}</td>
+                        <td className="p-3 hidden md:table-cell"><SpeedBar avg={b.avg} dark={dark} /></td>
+                      </tr>
 
-                        {/* Expanded deal detail rows */}
-                        {isOpen && b.deals.length > 0 && (
-                          <tr key={b.name + "_detail"} className={"border-t " + rowCls}>
-                            <td colSpan={9} className="p-0">
-                              <div className={"border-l-4 mx-2 mb-2 rounded-lg overflow-hidden"} style={{ borderColor: "#FF501C" }}>
-                                <table className="w-full text-xs min-w-[700px]">
-                                  <thead style={subHeadStyle}>
-                                    <tr className={theadCls}>
-                                      <th className="px-3 py-2 text-left">ID</th>
-                                      <th className="px-3 py-2 text-left">Názov dealu</th>
-                                      <th className="px-3 py-2 text-left">Otvorený</th>
-                                      <th className="px-3 py-2 text-left">Uzatvorený</th>
-                                      <th className="px-3 py-2 text-left">Dni v inzerovaní</th>
-                                      <th className="px-3 py-2 text-left">Hodnota dealu</th>
-                                      <th className="px-3 py-2 text-left">Stav</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {b.deals.map(d => {
-                                      const ds = getSpeed(d.days);
-                                      return (
-                                        <tr key={d.deal_id} className={"border-t " + subRowCls}>
-                                          <td className="px-3 py-2 text-gray-500 font-mono">#{d.pd_id || d.deal_id}</td>
-                                          <td className="px-3 py-2 font-medium max-w-[220px] truncate" title={d.deal_title}>
-                                            <a href={`https://autorro.pipedrive.com/deal/${d.deal_id}`}
-                                              target="_blank" rel="noopener noreferrer"
-                                              className="hover:underline" style={{ color: "#FF501C" }}
-                                              onClick={e => e.stopPropagation()}>
-                                              {d.deal_title || "—"}
-                                            </a>
-                                          </td>
-                                          <td className="px-3 py-2">{fmt(d.add_time)}</td>
-                                          <td className="px-3 py-2">{fmt(d.close_time)}</td>
-                                          <td className={"px-3 py-2 font-bold " + ds.color}>{d.days}d</td>
-                                          <td className="px-3 py-2">{fmtMoney(d.value, d.currency)}</td>
-                                          <td className="px-3 py-2">{statusBadge(d.status)}</td>
-                                        </tr>
-                                      );
-                                    })}
-                                  </tbody>
-                                </table>
+                      {isOpen && b.deals.length > 0 && (
+                        <tr key={b.name + "_detail"} className={"border-t " + rowCls}>
+                          <td colSpan={9} className="p-2">
+                            <div className="border-l-4 rounded-lg overflow-hidden" style={{ borderColor: "#FF501C" }}>
+                              {/* Mobile: cards */}
+                              <div className="md:hidden flex flex-col gap-2 p-2">
+                                {b.deals.map(d => {
+                                  const ds = getSpeed(d.days);
+                                  return (
+                                    <div key={d.deal_id} className={"rounded-lg p-3 text-xs " + (dark ? "bg-gray-800" : "bg-white border border-gray-100")}>
+                                      <div className="flex justify-between items-start mb-2">
+                                        <a href={`https://autorro.pipedrive.com/deal/${d.deal_id}`}
+                                          target="_blank" rel="noopener noreferrer"
+                                          className="font-semibold hover:underline leading-tight" style={{ color: "#FF501C" }}
+                                          onClick={e => e.stopPropagation()}>
+                                          {d.deal_title || "—"}
+                                        </a>
+                                        {statusBadge(d.status)}
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-1 text-gray-500">
+                                        <span>#{d.pd_id || d.deal_id}</span>
+                                        <span className={"font-bold " + ds.color}>{d.days}d v inzerovaní</span>
+                                        <span>Otv: {fmt(d.add_time)}</span>
+                                        <span>Uza: {fmt(d.close_time)}</span>
+                                        <span>Hodnota: <span className="font-medium text-gray-800">{fmtMoney(d.value, d.currency)}</span></span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
                               </div>
-                            </td>
-                          </tr>
-                        )}
-                      </>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                              {/* Desktop: table */}
+                              <table className="hidden md:table w-full text-xs">
+                                <thead style={subHeadStyle}>
+                                  <tr className={theadCls}>
+                                    <th className="px-3 py-2 text-left">ID</th>
+                                    <th className="px-3 py-2 text-left">Názov dealu</th>
+                                    <th className="px-3 py-2 text-left">Otvorený</th>
+                                    <th className="px-3 py-2 text-left">Uzatvorený</th>
+                                    <th className="px-3 py-2 text-left">Dni v inzerovaní</th>
+                                    <th className="px-3 py-2 text-left">Hodnota dealu</th>
+                                    <th className="px-3 py-2 text-left">Stav</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {b.deals.map(d => {
+                                    const ds = getSpeed(d.days);
+                                    return (
+                                      <tr key={d.deal_id} className={"border-t " + subRowCls}>
+                                        <td className="px-3 py-2 text-gray-500 font-mono">#{d.pd_id || d.deal_id}</td>
+                                        <td className="px-3 py-2 font-medium max-w-[220px] truncate" title={d.deal_title}>
+                                          <a href={`https://autorro.pipedrive.com/deal/${d.deal_id}`}
+                                            target="_blank" rel="noopener noreferrer"
+                                            className="hover:underline" style={{ color: "#FF501C" }}
+                                            onClick={e => e.stopPropagation()}>
+                                            {d.deal_title || "—"}
+                                          </a>
+                                        </td>
+                                        <td className="px-3 py-2">{fmt(d.add_time)}</td>
+                                        <td className="px-3 py-2">{fmt(d.close_time)}</td>
+                                        <td className={"px-3 py-2 font-bold " + ds.color}>{d.days}d</td>
+                                        <td className="px-3 py-2">{fmtMoney(d.value, d.currency)}</td>
+                                        <td className="px-3 py-2">{statusBadge(d.status)}</td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  );
+                })}
+              </tbody>
+            </table>
           </>
         )}
       </div>
