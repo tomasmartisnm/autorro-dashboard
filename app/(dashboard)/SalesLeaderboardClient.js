@@ -15,6 +15,14 @@ const OFFICES = {
 };
 const EXCLUDE = ["Development","Tomáš Martiš","Miroslav Hrehor","Peter Hudec","Jaroslav Kováč"];
 
+// Kurzy prepočtu na EUR (pevný kurz — aktualizuj podľa potreby)
+const FX = { EUR: 1, CZK: 1 / 25.5 };
+
+function toEur(value, currency) {
+  const rate = FX[currency] ?? 1;
+  return value * rate;
+}
+
 function norm(s) {
   return (s || "").normalize("NFD").replace(/\p{Diacritic}/gu,"").trim().toLowerCase();
 }
@@ -25,6 +33,10 @@ function inOffice(name, officeNames) {
 }
 function fmtMoney(v) {
   return new Intl.NumberFormat("sk-SK", { style:"currency", currency:"EUR", maximumFractionDigits: 0 }).format(v);
+}
+function fmtOrig(v, currency) {
+  if (currency === "EUR") return null; // nepotrebuje pôvodný formát
+  return new Intl.NumberFormat("sk-SK", { style:"currency", currency, maximumFractionDigits: 0 }).format(v);
 }
 function fmtDate(d) {
   if (!d) return "—";
@@ -88,12 +100,12 @@ export default function SalesLeaderboardClient() {
     return true;
   });
 
-  /* ── Agregácia podľa makléra ── */
+  /* ── Agregácia podľa makléra (všetko prepočítané na EUR) ── */
   const brokerMap = {};
   for (const d of filtered) {
     if (!brokerMap[d.owner]) brokerMap[d.owner] = { count: 0, total: 0, deals: [] };
-    brokerMap[d.owner].count  += 1;
-    brokerMap[d.owner].total  += d.cenaVozidla;
+    brokerMap[d.owner].count += 1;
+    brokerMap[d.owner].total += toEur(d.cenaVozidla, d.currency);
     brokerMap[d.owner].deals.push(d);
   }
   const brokers = Object.entries(brokerMap)
@@ -251,15 +263,22 @@ export default function SalesLeaderboardClient() {
                   <div className="border-t border-gray-100">
                     {/* Mobile: karty */}
                     <div className="md:hidden divide-y divide-gray-100">
-                      {b.deals.sort((a,z) => new Date(z.wonTime) - new Date(a.wonTime)).map(d => (
-                        <div key={d.id} className="px-4 py-3 flex justify-between items-start">
-                          <div>
-                            <p className="font-medium text-gray-800 text-sm">{d.title}</p>
-                            <p className="text-xs text-gray-400">{fmtDate(d.wonTime)}</p>
+                      {b.deals.sort((a,z) => new Date(z.wonTime) - new Date(a.wonTime)).map(d => {
+                        const orig = fmtOrig(d.cenaVozidla, d.currency);
+                        const eur  = fmtMoney(toEur(d.cenaVozidla, d.currency));
+                        return (
+                          <div key={d.id} className="px-4 py-3 flex justify-between items-start">
+                            <div>
+                              <p className="font-medium text-gray-800 text-sm">{d.title}</p>
+                              <p className="text-xs text-gray-400">{fmtDate(d.wonTime)}</p>
+                            </div>
+                            <div className="text-right ml-2">
+                              <p className="font-bold text-green-700 text-sm whitespace-nowrap">{orig ?? eur}</p>
+                              {orig && <p className="text-xs text-gray-400 whitespace-nowrap">≈ {eur}</p>}
+                            </div>
                           </div>
-                          <p className="font-bold text-green-700 text-sm whitespace-nowrap ml-2">{fmtMoney(d.cenaVozidla)}</p>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
 
                     {/* Desktop: tabuľka */}
@@ -268,21 +287,29 @@ export default function SalesLeaderboardClient() {
                         <tr className="bg-gray-50 text-xs uppercase text-gray-400">
                           <th className="px-5 py-2 text-left font-semibold">Vozidlo</th>
                           <th className="px-5 py-2 text-left font-semibold">Predané dňa</th>
-                          <th className="px-5 py-2 text-right font-semibold">Hodnota</th>
+                          <th className="px-5 py-2 text-right font-semibold">Pôvodná hodnota</th>
+                          <th className="px-5 py-2 text-right font-semibold">EUR</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
-                        {b.deals.sort((a,z) => new Date(z.wonTime) - new Date(a.wonTime)).map(d => (
-                          <tr key={d.id} className="hover:bg-gray-50">
-                            <td className="px-5 py-2.5 font-medium text-gray-800">{d.title}</td>
-                            <td className="px-5 py-2.5 text-gray-500">{fmtDate(d.wonTime)}</td>
-                            <td className="px-5 py-2.5 text-right font-bold text-green-700">{fmtMoney(d.cenaVozidla)}</td>
-                          </tr>
-                        ))}
+                        {b.deals.sort((a,z) => new Date(z.wonTime) - new Date(a.wonTime)).map(d => {
+                          const orig = fmtOrig(d.cenaVozidla, d.currency);
+                          const eur  = fmtMoney(toEur(d.cenaVozidla, d.currency));
+                          return (
+                            <tr key={d.id} className="hover:bg-gray-50">
+                              <td className="px-5 py-2.5 font-medium text-gray-800">{d.title}</td>
+                              <td className="px-5 py-2.5 text-gray-500">{fmtDate(d.wonTime)}</td>
+                              <td className="px-5 py-2.5 text-right text-gray-500">
+                                {orig ? <span className="font-semibold text-blue-700">{orig}</span> : <span className="text-gray-300">—</span>}
+                              </td>
+                              <td className="px-5 py-2.5 text-right font-bold text-green-700">{eur}</td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                       <tfoot>
                         <tr className="bg-green-50">
-                          <td colSpan={2} className="px-5 py-2 text-sm font-semibold text-green-800">Spolu</td>
+                          <td colSpan={3} className="px-5 py-2 text-sm font-semibold text-green-800">Spolu (v EUR)</td>
                           <td className="px-5 py-2 text-right font-extrabold text-green-800">{fmtMoney(b.total)}</td>
                         </tr>
                       </tfoot>
