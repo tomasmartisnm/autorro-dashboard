@@ -31,17 +31,44 @@ const KNOWN_BRANDS_SET = new Set(KNOWN_BRANDS);
 function expandAbbr(t) {
   return t
     // VW skratky a preklepy
-    .replace(/\bvw\b/g,          "volkswagen")
-    .replace(/\bwv\b/g,          "volkswagen")
-    .replace(/\bvolkwagen\b/g,   "volkswagen")
-    .replace(/\bvolkswagen\b/g,  "volkswagen")
-    .replace(/\bvolskwagen\b/g,  "volkswagen")
-    .replace(/\bwolksvagen\b/g,  "volkswagen")
+    .replace(/\bvw\b/g,           "volkswagen")
+    .replace(/\bwv\b/g,           "volkswagen")
+    .replace(/\bvolkwagen\b/g,    "volkswagen")
+    .replace(/\bvolkswagen\b/g,   "volkswagen")
+    .replace(/\bvolskwagen\b/g,   "volkswagen")
+    .replace(/\bwolksvagen\b/g,   "volkswagen")
+    .replace(/\bvolksvagen\b/g,   "volkswagen")
+    .replace(/\bwolkswagen\b/g,   "volkswagen")
+    .replace(/\bvolcvagen\b/g,    "volkswagen")
+    .replace(/\bvolswagen\b/g,    "volkswagen")
+    .replace(/\bwolksflagen\b/g,  "volkswagen")
+    .replace(/\bwolksvaden\b/g,   "volkswagen")
     // VW modely (keď titul začína modelom bez značky)
-    .replace(/^(golf|passat|pasat|tiguan|touran|touareg|arteon|caddy|multivan|caravelle|scirocco|sharan|amarok|t-roc|t roc|troc|id\.?3|id\.?4|id\.?5)\b/, "volkswagen $1")
-    // Mercedes skratky
-    .replace(/\bmb\b/g,  "mercedes")
-    .replace(/\bamg\b/g, "mercedes");
+    .replace(/^(golf|passat|pasat|tiguan|touran|touareg|arteon|caddy|multivan|caravelle|scirocco|sharan|amarok|t-roc|t roc|troc|id\.?3|id\.?4|id\.?5|polo|t4|t5|transporter|crafter|phaeton)\b/, "volkswagen $1")
+    // Škoda modely (keď titul začína modelom bez značky)
+    .replace(/^(octavia|octavie|oktavia|superb|fabia|kodiaq|karoq|rapid|enyaq|roomster|yeti|scala)\b/, "skoda $1")
+    // SEAT modely
+    .replace(/^(alhambra|ateca)\b/, "seat $1")
+    // Mercedes skratky a preklepy
+    .replace(/\bmb\b/g,           "mercedes")
+    .replace(/\bamg\b/g,          "mercedes")
+    .replace(/\bmercedesbenz\b/g, "mercedes")
+    .replace(/\bmerdes\b/g,       "mercedes")
+    // Land Rover
+    .replace(/\blandrover\b/g,    "land rover")
+    .replace(/\brange rover\b/g,  "land rover")
+    // Ostatné preklepy
+    .replace(/\bbmv\b/g,          "bmw")
+    .replace(/\bmitsubushi\b/g,   "mitsubishi")
+    .replace(/\bmitsubichi\b/g,   "mitsubishi")
+    .replace(/\btoyotoa\b/g,      "toyota")
+    .replace(/\bnisan\b/g,        "nissan")
+    .replace(/\bnissa\b/g,        "nissan")
+    .replace(/\bpeugot\b/g,       "peugeot")
+    .replace(/\bsuzuky\b/g,       "suzuki")
+    .replace(/\bbentli\b/g,       "bentley")
+    .replace(/\bhuyndai\b/g,      "hyundai")
+    .replace(/\bminicooper\b/g,   "mini cooper");
 }
 
 /* Nájdi značku kdekoľvek v titule (celé slovo) */
