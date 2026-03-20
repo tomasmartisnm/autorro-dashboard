@@ -99,10 +99,33 @@ async function fetchZnackaMap(token, rawDeals) {
   return map;
 }
 
+/* Normalizovaný label pre úverovú kategóriu */
+const CREDIT_NORM = "auto nie je z ponuky uver";
+
 function getZnacka(deal, znackaMap) {
-  const raw = deal[ZNACKA_KEY];
-  if (!raw) return "Neurčená";
-  return znackaMap[String(raw)] || "Neurčená";
+  const raw   = deal[ZNACKA_KEY];
+  const label = raw ? (znackaMap[String(raw)] || "Neurčená") : "Neurčená";
+
+  // Pre úverové dealy a dealy bez značky — zisti brand z titulu
+  const ln = norm(label);
+  if (label === "Neurčená" || ln.startsWith("auto nie je z ponuky")) {
+    const detected = brandFromTitle(deal.title || "");
+    if (detected) {
+      return detected
+        .split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
+        .replace(/\bSkoda\b/, "Škoda")
+        .replace(/\bCitroen\b/, "Citroën")
+        .replace(/\bBmw\b/, "BMW")
+        .replace(/\bMg\b/, "MG")
+        .replace(/\bDs\b/, "DS")
+        .replace(/\bGmc\b/, "GMC")
+        .replace(/\bSsangyong\b/, "SsangYong");
+    }
+    // Ak sa brand z titulu nepodarí zistiť, ponechaj pôvodný label
+    return label;
+  }
+
+  return label;
 }
 
 async function fetchRawDeals(token) {
