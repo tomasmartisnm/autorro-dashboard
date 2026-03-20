@@ -80,11 +80,13 @@ async function fetchZnackaMap(token, rawDeals) {
     const detectedNorm = norm(topBrand);
     if (currentNorm === detectedNorm) continue; // zhoda — nič nerob
 
-    // Oprav label — pekný formát
+    // Oprav label — pekný formát s diakritikou
     const corrected = topBrand
       .split(" ")
       .map(w => w.charAt(0).toUpperCase() + w.slice(1))
       .join(" ")
+      .replace(/\bSkoda\b/, "Škoda")
+      .replace(/\bCitroen\b/, "Citroën")
       .replace(/\bBmw\b/, "BMW")
       .replace(/\bMg\b/, "MG")
       .replace(/\bDs\b/, "DS")
@@ -136,14 +138,18 @@ export async function GET(request) {
   const rawDeals  = await fetchRawDeals(token);
   const znackaMap = await fetchZnackaMap(token, rawDeals);
 
-  const byBrand = {};
+  // Agregácia — kľúčom je normalizovaný názov, čím sa zlúčia napr. "Škoda" + "Skoda"
+  const byNorm = {};
   for (const d of rawDeals) {
-    const z = getZnacka(d, znackaMap);
-    if (!byBrand[z]) byBrand[z] = { brand: z, open: 0, won: 0, lost: 0 };
-    byBrand[z][d.status]++;
+    const label = getZnacka(d, znackaMap);
+    const key   = norm(label);
+    if (!byNorm[key]) byNorm[key] = { brand: label, open: 0, won: 0, lost: 0 };
+    byNorm[key][d.status]++;
+    // Preferuj label s diakritikou (obsahuje Unicode znaky navyše)
+    if (label.length > byNorm[key].brand.length) byNorm[key].brand = label;
   }
 
-  const result = Object.values(byBrand)
+  const result = Object.values(byNorm)
     .map(b => ({
       brand:   b.brand,
       open:    b.open,
