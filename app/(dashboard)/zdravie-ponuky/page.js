@@ -1,7 +1,5 @@
-import ZdraviePonukyClient from "./ZdraviePonukyClient";
-
-export const metadata = { title: "Zdravie ponuky – Autorro" };
+import DashboardClient from "../DashboardClient";
 
 export default function ZdraviePonukyPage() {
-  return <ZdraviePonukyClient />;
+  return <DashboardClient />;
 }
