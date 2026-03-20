@@ -25,6 +25,8 @@ const KNOWN_BRANDS = [
   "subaru","suzuki","tatra","tesla","toyota","volkswagen","volvo",
 ].sort((a, b) => b.length - a.length); // dlhšie zhody majú prednosť
 
+const KNOWN_BRANDS_SET = new Set(KNOWN_BRANDS);
+
 /* Rozviň skratky a oprav preklepy pred detekciou značky */
 function expandAbbr(t) {
   return t
@@ -123,9 +125,10 @@ function getZnacka(deal, znackaMap) {
   const raw   = deal[ZNACKA_KEY];
   const label = raw ? (znackaMap[String(raw)] || "Neurčená") : "Neurčená";
 
-  // Pre úverové dealy a dealy bez značky — zisti brand z titulu
+  // Pre úverové dealy, dealy bez značky a neznáme/premenované značky — zisti brand z titulu
   const ln = norm(label);
-  if (label === "Neurčená" || ln.startsWith("auto nie je z ponuky")) {
+  const isKnownCarBrand = KNOWN_BRANDS_SET.has(ln);
+  if (label === "Neurčená" || ln.startsWith("auto nie je z ponuky") || !isKnownCarBrand) {
     const detected = brandFromTitle(deal.title || "");
     if (detected) {
       return detected
