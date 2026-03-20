@@ -56,6 +56,9 @@ export default function ZnackyClient() {
     .filter(b => b.total >= minOp)
     .filter(b => !search || b.brand.toLowerCase().includes(search.toLowerCase()))
     .sort((a, z) => {
+      // Neurčená vždy na koniec
+      if (a.brand === "Neurčená" && z.brand !== "Neurčená") return 1;
+      if (z.brand === "Neurčená" && a.brand !== "Neurčená") return -1;
       if (sort === "winRate") {
         const av = a.winRate ?? -1, bv = z.winRate ?? -1;
         return bv - av;
