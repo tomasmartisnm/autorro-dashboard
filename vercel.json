@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/snapshot?token=CRON_SECRET_PLACEHOLDER",
+      "path": "/api/snapshot",
       "schedule": "0 22 * * *"
     }
   ]
